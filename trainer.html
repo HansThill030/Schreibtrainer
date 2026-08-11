@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Schreibtrainer</title>
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div>
+      <h1>Schreibtrainer</h1>
+      <div class="sub">Deutsch als Fremdsprache · Schreiben</div>
+    </div>
+    <a class="home-link" href="index.html">← Zur Startseite</a>
+  </div>
+
+  <div class="stepper" id="stepper"></div>
+
+  <!-- PAGE 2: Konfiguration -->
+  <section class="page" id="page-config">
+    <h2 class="screen-title">Niveau, Textsorte &amp; Schwierigkeit</h2>
+    <div class="niveau-row" id="niveauRow"></div>
+    <div class="teile" id="teileRow"></div>
+
+    <div class="diff-block">
+      <div class="diff-head">
+        <span class="label">Schwierigkeitsgrad</span>
+        <span class="val" id="diffVal">4</span>
+      </div>
+      <input type="range" min="1" max="8" value="4" id="diffSlider">
+      <div class="diff-scale"><span>1 · leicht</span><span>8 · anspruchsvoll</span></div>
+      <div class="diff-hint">Steuert, wie anspruchsvoll Wortschatz, Thema und Aufgabenstellung innerhalb des gewählten Niveaus sind.</div>
+    </div>
+
+    <div class="nav-row">
+      <span></span>
+      <button class="primary" id="btnToAufgabe">Weiter →</button>
+    </div>
+  </section>
+
+  <!-- PAGE 3: Aufgabe -->
+  <section class="page" id="page-aufgabe">
+    <h2 class="screen-title">Aufgabe</h2>
+    <div class="aufgabe-card">
+      <div class="label"><span id="aufgabeTag"></span><span id="aufgabeSchwierigkeit"></span></div>
+      <div class="aufgabe-text" id="aufgabeText">—</div>
+      <div class="quelltext" id="quelltext" style="display:none;"></div>
+      <div class="baloes" id="baloes" style="display:none;"></div>
+      <div class="ref-note" id="refNote"></div>
+      <div class="card-actions">
+        <button class="primary" id="btnGerarIA">🎲 Neues Thema generieren</button>
+        <span class="loading-inline" id="loadingIA" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--ink-soft);">wird erstellt&hellip;</span>
+      </div>
+    </div>
+    <div class="nav-row">
+      <button class="ghost" id="btnBackToConfig">← Zurück</button>
+      <button class="primary" id="btnToSchreiben" disabled>Weiter →</button>
+    </div>
+  </section>
+
+  <!-- PAGE 4: Schreiben -->
+  <section class="page" id="page-schreiben">
+    <h2 class="screen-title">Dein Text</h2>
+    <div class="mini-aufgabe" id="miniAufgabe"></div>
+    <div class="schreibfeld-wrap">
+      <div class="schreibfeld-head">
+        <span class="label">Text</span>
+        <span class="wortzahl" id="wortzahlEl">0 Wörter</span>
+      </div>
+      <textarea id="textInput" placeholder="Schreib hier deinen Text auf Deutsch..."></textarea>
+    </div>
+    <div class="nav-row">
+      <button class="ghost" id="btnBackToAufgabe">← Zurück</button>
+      <button class="primary" id="btnSenden">Senden &amp; korrigieren →</button>
+    </div>
+  </section>
+
+  <!-- PAGE 5: Korrektur -->
+  <section class="page" id="page-korrektur">
+    <h2 class="screen-title">Korrektur</h2>
+    <div class="loading-big" id="loadingResult"><div class="spin"></div>Text wird analysiert&hellip;</div>
+    <div class="feedback" id="feedback" style="display:none;">
+      <div class="stamp" id="stamp"><div class="niveau" id="stampNiveau">B1</div><div class="tag" id="stampTag">erreicht</div></div>
+      <div class="fb-section"><h3>Aufgabenerfüllung</h3><p id="fbErfuellung"></p></div>
+      <div class="fb-section"><h3>Aufbau &amp; Struktur</h3><p id="fbAufbau"></p></div>
+      <div class="fb-section"><h3>Sprache</h3><p id="fbSprache"></p></div>
+      <div class="fb-section"><h3>Korrekturen</h3><ul class="korrekturen" id="korrekturenList"></ul></div>
+      <div class="tip-box" id="fbTip"></div>
+    </div>
+    <div class="nav-row">
+      <button class="ghost" id="btnNeueTextsorte">Neue Textsorte</button>
+      <button class="primary" id="btnNochmal">Nochmal schreiben (gleiche Aufgabe)</button>
+    </div>
+  </section>
+
+  <div class="disclaimer">Übungswerkzeug &mdash; keine offizielle Prüfungsbewertung. Themen werden von einer KI generiert, orientiert an echten Modellsätzen.</div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
