@@ -55,19 +55,42 @@ async function loadBank(){
   }
 }
 
+/* Extrahiert die Modellsatz-Nummer aus dem filename, z.B. "DSD I Modellsatz 7 – Musik" -> 7 */
+function extrairNumeroModellsatz(filename){
+  const m = /Modellsatz\s*(\d+)/i.exec(filename || '');
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/* Wählt Referenz-Modellsätze passend zum Schwierigkeitsgrad (1-8):
+   Der Regler zeigt proportional auf die Nummer des Modellsatzes im Banco —
+   z.B. bei 8 vorhandenen B1-Modellsätzen zeigt Schwierigkeit 5 auf Modellsatz 5,
+   und die Nachbarn (4 und 6) werden als zusätzliche Referenz mitgenommen. */
 function pickReferences(){
   const grupo = NIVEAU_GROUP[state.niveau];
   const exact = state.bank.filter(b => NIVEAU_GROUP[b.niveau] === grupo && b.textsorte === state.tipoKey);
-  const sameGrupo = state.bank.filter(b => NIVEAU_GROUP[b.niveau] === grupo && b.textsorte !== state.tipoKey);
-  const pool = exact.length ? exact : sameGrupo;
+  const pool = exact.length ? exact : state.bank.filter(b => NIVEAU_GROUP[b.niveau] === grupo);
   if (!pool.length) return [];
-  const shuffled = [...pool].sort(() => Math.random()-0.5);
-  return shuffled.slice(0,2);
+
+  const comNumero = pool
+    .map(b => ({ item:b, n: extrairNumeroModellsatz(b.filename) }))
+    .filter(x => x.n !== null)
+    .sort((a,b) => a.n - b.n);
+
+  if (!comNumero.length) {
+    const shuffled = [...pool].sort(() => Math.random()-0.5);
+    return shuffled.slice(0,2);
+  }
+
+  const total = comNumero.length;
+  const alvo = Math.max(1, Math.min(total, Math.round((state.schwierigkeit/8) * total)));
+  const posicoes = [alvo-1, alvo, alvo+1].filter(n => n >= 1 && n <= total);
+  const indices = [...new Set(posicoes)].map(pos => pos - 1);
+  return indices.map(i => comNumero[i].item);
 }
 
 /* ---------- Claude API (via Supabase Edge Function claude-proxy) ---------- */
 async function callClaude(userPrompt, maxTokens){
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/claude-proxy`, {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -254,16 +277,42 @@ async function gerarB1Forum(meta){
   const refs = pickReferences();
   let refBlock = '';
   if (refs.length) {
-    refBlock = `\n\nStil-Referenz (Ton/Länge der Aussagen nachahmen, KEIN Thema wiederholen):\n${refs[0].text}`;
+    refBlock = `\n\nStil-Referenz aus echten Modellsätzen nahe deinem Schwierigkeitsgrad (Ton/Länge/Satzbau nachahmen, KEIN Thema wiederholen):\n` +
+      refs.map((r,i) => `--- ${r.filename} ---\n${r.text}`).join('\n');
     $('refNote').textContent = 'Orientiert an: ' + refs.map(r=>r.filename).join(', ');
   } else {
     $('refNote').textContent = 'Kein passender Modellsatz im Banco gespeichert — Aussagen werden nach allgemeinem Muster generiert.';
   }
-  const prompt = `Du bist Experte für die Erstellung von DSD-I-Prüfungsaufgaben (Deutsches Sprachdiplom). Erstelle die Variablen für einen "Beitrag für die Schülerzeitung"-Aufgabe auf B1-Niveau, Schwierigkeitsgrad ${state.schwierigkeit}/8 (1 = einfaches, konkretes Alltagsthema, 8 = abstrakteres Thema mit anspruchsvollerem Wortschatz).
-Wähle ein NEUES, altersgerechtes Thema für Jugendliche (nicht Musik, Hausaufgaben, Lesen, Zu-spät-Kommen, Nebenjobs, Haustiere, Gewalt im Fernsehen oder Zu Hause mithelfen, das ist schon oft benutzt worden — such etwas anderes, z.B. Reisen, Mode, Essen, Freundschaft, Zukunftspläne, Wohnen, Umwelt, o.ä.).${refBlock}
-Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
-{"thema": "ein Wort oder kurzer Begriff, z.B. 'Sport' oder 'Haustiere'", "personen": [{"name":"Vorname 1","aussage":"2-4 Sätze in Ich-Perspektive, persönliche Erfahrung/Meinung zum Thema, wie ein Forumspost"},{"name":"Vorname 2","aussage":"..."},{"name":"Vorname 3","aussage":"..."},{"name":"Vorname 4","aussage":"..."}], "frage_persoenlich": "Ein Satz im Stil 'Welche Rolle spielt in deinem Leben das Thema \\"[Thema]\\"? Berichte ausführlich.'", "frage_meinung": "Eine Ja/Nein- oder Bewertungsfrage zum Thema im Stil '[Frage]? Was denkst du? Begründe deine Meinung ausführlich.'"}
-Die 4 Personen sollen unterschiedliche, teils gegensätzliche Perspektiven haben (wie im echten Modellsatz).`;
+
+  const schwierigkeitsHinweis = state.schwierigkeit <= 2
+    ? 'Sehr konkretes, alltagsnahes Thema. Kurze, einfache Hauptsätze. Grundwortschatz.'
+    : state.schwierigkeit <= 5
+    ? 'Durchschnittliches B1-Thema. Mix aus Haupt- und Nebensätzen (weil, wenn, dass). Normaler B1-Wortschatz.'
+    : 'Etwas abstrakteres Thema, mehr Nebensätze und Konnektoren (obwohl, trotzdem, außerdem, allerdings). WICHTIG: trotzdem im B1-Wortschatz bleiben, keine C1-Wörter — nur Satzbau und Themenwahl werden anspruchsvoller, nicht die Wortliste.';
+
+  const prompt = `Du bist Experte für die Erstellung von DSD-I-Prüfungsaufgaben (Deutsches Sprachdiplom), Textsorte "Beitrag für die Schülerzeitung" / "Leserbrief" auf B1-Niveau.
+
+AUFGABE: Erstelle die variablen Teile für eine neue Aufgabe im exakt gleichen Format wie die echten Modellsätze.
+
+SCHWIERIGKEITSGRAD ${state.schwierigkeit}/8: ${schwierigkeitsHinweis}
+
+REGELN (unbedingt einhalten):
+1. Antworte NUR mit einem einzigen JSON-Objekt. Kein Text davor oder danach. Keine Markdown-Backticks (\`\`\`).
+2. Das JSON muss GENAU diese Struktur haben, keine zusätzlichen oder fehlenden Felder:
+   {"thema": string, "personen": [4 Objekte mit "name" und "aussage"], "frage_persoenlich": string, "frage_meinung": string}
+3. "thema": ein bis zwei Wörter, groß geschrieben wie ein Titel (z.B. "Handynutzung", "Ferienjobs").
+4. "personen": genau 4 Personen, mit unterschiedlichen deutschen Vornamen (Mix aus männlich/weiblich). Jede Aussage: 2-4 Sätze, Ich-Perspektive, wie ein echter Forumspost — konkret, mit eigenem Beispiel oder Grund, nicht generisch.
+5. Die 4 Meinungen müssen sich WIRKLICH unterscheiden — mindestens 2 klar gegensätzliche Positionen, nicht 4x die gleiche Meinung mit anderen Worten.
+6. "frage_persoenlich": eine Frage nach der eigenen Erfahrung des Schreibers zum Thema, endet mit "Berichte ausführlich." (Beispiele: "Wie sieht es an deiner Schule mit X aus? Berichte ausführlich." / "Hast du X? Berichte ausführlich.")
+7. "frage_meinung": eine Bewertungsfrage (oft Ja/Nein), endet mit "Begründe deine Meinung ausführlich." (Beispiele: "Ist X sinnvoll? Begründe deine Meinung ausführlich." / "Sollte man X? Begründe deine Meinung ausführlich.")
+8. Escape alle Anführungszeichen innerhalb der Strings korrekt für JSON (\\").
+9. NEUES Thema — nicht: Musik, Hausaufgaben, Lesen, Zu-spät-Kommen, Nebenjobs, Haustiere, Gewalt im Fernsehen, Zu Hause mithelfen (schon oft benutzt).
+
+BEISPIEL für die korrekte JSON-Struktur (anderes Thema, nur zur Formatreferenz — nicht kopieren):
+{"thema": "Taschengeld", "personen": [{"name": "Finn", "aussage": "Ich bekomme jeden Monat 20 Euro Taschengeld. Das reicht mir eigentlich gut, weil ich nicht so viel kaufe. Nur für neue Fußballschuhe muss ich immer länger sparen."}, {"name": "Mia", "aussage": "Meine Eltern geben mir kein festes Taschengeld. Ich bekomme Geld, wenn ich etwas brauche, zum Beispiel für Kino oder Kleidung. Das finde ich eigentlich besser."}, {"name": "Ben", "aussage": "Ich finde, Taschengeld sollte man sich verdienen. Ich helfe im Garten meiner Oma und bekomme dafür Geld. So lerne ich, dass Geld nicht einfach so kommt."}, {"name": "Lea", "aussage": "Bei uns bekommen alle Geschwister gleich viel Taschengeld, egal wie alt sie sind. Ich finde das unfair, weil meine große Schwester viel mehr Sachen braucht als ich."}], "frage_persoenlich": "Bekommst du Taschengeld oder verdienst du dir dein Geld selbst? Berichte ausführlich.", "frage_meinung": "Sollten Kinder für Hausarbeit Taschengeld bekommen? Begründe deine Meinung ausführlich."}${refBlock}
+
+Erstelle jetzt eine neue Aufgabe nach diesen Regeln.`;
+
   const raw = await callClaude(prompt, 900);
   const json = extractJson(raw);
   const quelltext = json.personen.map(p => `${p.name}: ${p.aussage}`).join('\n\n');

@@ -29,66 +29,62 @@ não tem mais a política de rede restrita do artifact — o `fetch()` para
 2. Dentro da pasta do projeto: `vercel deploy`
 3. Segue o fluxo — não precisa de build, é só arquivos estáticos
 
-## Nota sobre a API da Anthropic
-As chamadas de IA agora passam pela Edge Function `claude-proxy` (pasta
-`supabase/functions/claude-proxy/`), que guarda sua API key da Anthropic no
-servidor — nunca fica exposta no site.
+## IA gratuita: Google Gemini (via Edge Function)
 
-### ⚠️ Passo obrigatório: desativar "Verify JWT" na function
+As chamadas de IA passam pela Edge Function `gemini-proxy` (pasta
+`supabase/functions/gemini-proxy/`), que guarda sua API key do **Google
+Gemini** no servidor — nunca fica exposta no site. Usa o modelo
+`gemini-2.5-flash` (com fallback automático pro `gemini-2.0-flash` se o
+principal estiver sobrecarregado), que roda no tier gratuito do Google — **sem
+cartão de crédito**.
 
-Por padrão, o Supabase exige um JWT válido **antes mesmo** da sua function
-rodar — isso inclui a requisição de preflight `OPTIONS` que o navegador manda
-automaticamente antes de qualquer fetch cross-origin. Como o preflight não
-carrega os headers customizados (`apikey`/`Authorization`), ele toma 401 e o
-navegador bloqueia tudo com erro de CORS, mesmo a function estando com o
-código de CORS certo.
+### 1. Pega uma API key do Gemini (grátis)
+1. Acessa https://aistudio.google.com/apikey
+2. Faz login com uma conta Google
+3. "Create API Key" → copia a key gerada
 
-**Correção — via Dashboard:**
-1. Supabase → Edge Functions → `claude-proxy` → aba de configurações da function
-2. Desmarca **"Enforce JWT Verification"** (ou "Verify JWT")
-3. Salva / faz redeploy se pedir
+### 2. ⚠️ Passo obrigatório: desativar "Verify JWT" na function
+Por padrão, o Supabase exige JWT válido antes até de rodar sua function —
+isso inclui o preflight `OPTIONS` do navegador, que não carrega headers
+customizados. Sem desativar isso, o CORS trava tudo com 401 antes mesmo do
+seu código rodar.
 
-**Correção — via CLI:**
+**Via Dashboard:** Edge Functions → `gemini-proxy` → desmarca **"Enforce JWT
+Verification"** → salva/redeploy.
+
+**Via CLI (mais garantido):**
 ```bash
-supabase functions deploy claude-proxy --no-verify-jwt
+supabase functions deploy gemini-proxy --no-verify-jwt
 ```
 
-Como isso remove a proteção padrão da plataforma, o código da function agora
-faz uma checagem própria (mais simples) do header `apikey` — só aceita
-chamadas que mandem a publishable key correta. Não é segurança forte (a key
-já é pública no JS do site), mas barra bots/scans aleatórios batendo direto
-na URL da function.
-
-### Deploy da Edge Function (via Dashboard, sem precisar de CLI)
-
-1. Pega uma API key em https://console.anthropic.com/settings/keys (se ainda não tiver)
-2. No Supabase: menu lateral → **Edge Functions** → **Create a new function**
-3. Nome da function: `claude-proxy`
-4. Cola o conteúdo de `supabase/functions/claude-proxy/index.ts` no editor
-5. **Desmarca "Enforce JWT Verification"** (ver acima) antes de fazer deploy
-6. Deploy
-7. Depois de criada, vai em **Manage secrets** (ou Project Settings → Edge Functions → Secrets)
-   e adiciona:
-   - Nome: `ANTHROPIC_API_KEY`
-   - Valor: sua key da Anthropic (começa com `sk-ant-...`)
-8. Testa direto no navegador ou com curl:
+### 3. Deploy da Edge Function (via Dashboard, sem CLI)
+1. Supabase → **Edge Functions** → **Create a new function**
+2. Nome: `gemini-proxy`
+3. Cola o conteúdo de `supabase/functions/gemini-proxy/index.ts`
+4. Desmarca "Enforce JWT Verification" (passo 2)
+5. Deploy
+6. **Manage secrets** → adiciona:
+   - Nome: `GEMINI_API_KEY`
+   - Valor: a key que você pegou no passo 1
+7. Testa com curl:
    ```bash
-   curl -X POST 'https://omgsadypqptedpuokgkh.supabase.co/functions/v1/claude-proxy' \
+   curl -X POST 'https://omgsadypqptedpuokgkh.supabase.co/functions/v1/gemini-proxy' \
      -H 'Content-Type: application/json' \
      -H 'apikey: sb_publishable_dpL6--lbprFHSsctLRlRgA_qpm_jdft' \
      -d '{"prompt": "Sag nur Hallo auf Deutsch.", "max_tokens": 50}'
    ```
-   Se voltar um JSON com `"content":[{"type":"text","text":"Hallo!"}]`, está funcionando.
+   Deve voltar algo como `{"content":[{"type":"text","text":"Hallo!"}]}`.
 
-### Alternativa via CLI (deploy completo, já com verify_jwt desativado)
+### Alternativa via CLI (deploy completo)
 ```bash
 npm install -g supabase
 supabase login
 supabase link --project-ref omgsadypqptedpuokgkh
-supabase functions deploy claude-proxy --no-verify-jwt
-supabase secrets set ANTHROPIC_API_KEY=sk-ant-sua-key-aqui
+supabase functions deploy gemini-proxy --no-verify-jwt
+supabase secrets set GEMINI_API_KEY=sua-key-aqui
 ```
 
-⚠️ **Custo**: cada chamada de IA (gerar tema ou corrigir texto) consome créditos
-da sua conta Anthropic diretamente — diferente do artifact do Claude.ai, que
-não custa nada extra. Vale acompanhar o uso em console.anthropic.com/settings/usage.
+### Limites do tier gratuito (referência, pode mudar)
+Gemini 2.5 Flash: ~10-15 requisições/minuto, até ~1.000-1.500/dia — muito
+acima do que esse app deve usar em uso pessoal normal. Se algum dia bater
+limite (erro 429), a function já tenta automaticamente o modelo de fallback.
