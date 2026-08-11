@@ -29,8 +29,23 @@ const $ = id => document.getElementById(id);
 function currentMeta(){ return TEXTSORTEN[state.niveau].find(t => t.key === state.tipoKey); }
 
 /* ---------- Supabase ---------- */
-const SUPABASE_URL = 'https://omgsadypqptedpuokgkh.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_dpL6--lbprFHSsctLRlRgA_qpm_jdft';
+const SUPABASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_URL) ||
+  window.__SUPABASE_URL__ ||
+  "";
+const SUPABASE_KEY =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
+  window.__SUPABASE_ANON_KEY__ ||
+  "";
+
+function assertSupabaseConfig() {
+  if (!SUPABASE_URL || !SUPABASE_KEY) {
+    throw new Error(
+      "Supabase não está configurado. Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no Vercel."
+    );
+  }
+}
+
 
 function sbFetch(path, options = {}) {
   const headers = Object.assign({
@@ -89,7 +104,8 @@ function pickReferences(){
 }
 
 /* ---------- Claude API (via Supabase Edge Function claude-proxy) ---------- */
-async function callClaude(userPrompt, maxTokens){
+async function callGemini(userPrompt, maxTokens){
+  assertSupabaseConfig();
   const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
     method: "POST",
     headers: {
@@ -236,7 +252,7 @@ async function gerarGenerico(meta){
 Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${state.niveau}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).${dsdHinweis}${refBlock}
 Erfinde ein NEUES, noch nicht verwendetes Thema. Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
 {"aufgabe": "vollständiger Aufgabentext auf Deutsch inkl. Situation/Kontext, nummerierter/aufgezählter Punkte und Bearbeitungszeit", "quelltext": "Ausgangstext oder Grafikbeschreibung falls zutreffend, sonst leerer String"}`;
-  const raw = await callClaude(prompt, 900);
+  const raw = await callGemini(prompt, 900);
   const json = extractJson(raw);
   state.aufgabaObj = json;
   $('aufgabeTag').textContent = `${state.niveau} · ${meta.label}`;
@@ -261,7 +277,7 @@ Wähle ein NEUES, altersgerechtes Alltagsthema für Jugendliche (nicht Ferien, S
 Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
 {"thema": "ein Wort oder kurzer Begriff, z.B. 'Schule' oder 'Haustiere'", "einleitung": "zwei Sätze im Stil: '[Name] wohnt in Deutschland. Ihr schreibt euch regelmäßig E-Mails. In seiner/ihrer letzten E-Mail hat [Name] erzählt, [was er/sie erzählt hat, passend zum Thema].' (oder alternativ die Brieffreund-Variante wie im Beispiel 'Ferien')", "aufforderung": "ein Satz: 'Schreibe [Name] eine E-Mail zurück.' oder 'Beantworte [Name]s Brief.' (passend zur Einleitung)", "punkte": ["Frage/Aufforderung 1", "Frage/Aufforderung 2", "Frage/Aufforderung 3", "Frage/Aufforderung 4"]}
 Die 4 Punkte sollen wie im echten Modellsatz sein: konkrete Fragen zum Thema, die eigene Erfahrung des Schreibers betreffen.`;
-  const raw = await callClaude(prompt, 700);
+  const raw = await callGemini(prompt, 700);
   const json = extractJson(raw);
   const aufgabe = `${json.thema}\n\n${json.einleitung}\n\n${json.aufforderung}\n\nSchreibe ausführlich zu diesen vier Punkten:\n\n${json.punkte.map(p=>'• '+p).join('\n')}\n\nDu hast insgesamt 45 Minuten Zeit.`;
   state.aufgabaObj = { aufgabe, quelltext:'', thema: json.thema };
@@ -313,7 +329,7 @@ BEISPIEL für die korrekte JSON-Struktur (anderes Thema, nur zur Formatreferenz 
 
 Erstelle jetzt eine neue Aufgabe nach diesen Regeln.`;
 
-  const raw = await callClaude(prompt, 900);
+  const raw = await callGemini(prompt, 900);
   const json = extractJson(raw);
   const quelltext = json.personen.map(p => `${p.name}: ${p.aussage}`).join('\n\n');
   const aufgabe = `${json.thema}\n\nIn einem Internetforum gibt es eine Diskussion zum Thema „${json.thema}".\nDu findest hier dazu folgende Aussagen (siehe Sprechblasen oben).\n\n${meta.forumClosing}\n\nBearbeite in deinem Beitrag die folgenden drei Punkte:\n\n• Gib alle vier Aussagen aus dem Internetforum mit eigenen Worten wieder.\n• ${json.frage_persoenlich}\n• ${json.frage_meinung}\n\nDu hast insgesamt 75 Minuten Zeit.\nDu brauchst die Wörter nicht zu zählen.`;
@@ -368,7 +384,7 @@ ${text}
 Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks, auf Deutsch, kurz und konkret. Format:
 {"niveau_einschaetzung": "z.B. A2, A2+, B1-, B1, B1+, B2-, B2, B2+, C1-, C1", "status": "erreicht" | "knapp erreicht" | "noch nicht erreicht" | "übertroffen", "erfuellung": "1-2 Sätze", "aufbau": "1-2 Sätze", "sprache": "1-2 Sätze", "korrekturen": [{"original":"kurzer fehlerhafter Ausschnitt","korrektur":"korrigierte Version","erklaerung":"kurze Erklärung"}], "tipp": "ein konkreter nächster Schritt"}
 Maximal 6 Korrekturen, wichtigste zuerst.`;
-    const raw = await callClaude(prompt, 1000);
+    const raw = await callGemini(prompt, 1000);
     const json = extractJson(raw);
     renderFeedback(json);
   } catch(e) {

@@ -1,100 +1,159 @@
 // Supabase Edge Function: gemini-proxy
-// Empfängt { prompt, max_tokens } vom Frontend, ruft die Google Gemini API
-// (kostenloser Tier, kein Kreditkarte nötig) mit dem server-seitig gespeicherten
-// API-Key auf und gibt die Antwort im GLEICHEN Format zurück, das der Frontend-Code
-// vorher von der Anthropic API erwartet hat — {content:[{type:"text", text:"..."}]}.
-// So musste im app.js NICHTS an der Response-Verarbeitung geändert werden.
+// Required secret: GEMINI_API_KEY
+// Optional secret: SUPABASE_ANON_KEY (only if you want to enforce the incoming apikey header)
 //
-// WICHTIG: verify_jwt = false nötig (siehe README) — sonst blockiert der
-// CORS-Preflight (OPTIONS) mit 401, weil der Browser dabei keine Custom-Header
-// mitschickt. Als Ersatz prüfen wir den "apikey"-Header hier manuell.
+// Deploy with:
+//   supabase functions deploy gemini-proxy
+//
+// Set secrets with:
+//   supabase secrets set GEMINI_API_KEY=...
+//   supabase secrets set SUPABASE_ANON_KEY=...   (optional)
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+const PRIMARY_MODEL = "gemini-2.5-flash-lite";
+const FALLBACK_MODELS = ["gemini-2.0-flash-lite", "gemini-2.0-flash"];
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-// Öffentlicher "publishable" Supabase-Key deines Projekts — nur ein leichter
-// Schutz gegen zufällige/robotische Aufrufe, keine echte Security.
-const EXPECTED_APIKEY = "sb_publishable_dpL6--lbprFHSsctLRlRgA_qpm_jdft";
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
-// Bevorzugtes Modell + Fallback, falls das Hauptmodell mal überlastet/limitiert ist.
-const MODEL_PRIMARY = "gemini-2.5-flash";
-const MODEL_FALLBACK = "gemini-2.0-flash";
+function extractText(payload: any): string {
+  return (
+    payload?.candidates?.[0]?.content?.parts
+      ?.map((p: any) => p?.text || "")
+      .join("") ||
+    ""
+  );
+}
 
-async function chamarGemini(model: string, apiKey: string, prompt: string, maxTokens: number) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+async function callGemini(model: string, apiKey: string, body: any) {
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { maxOutputTokens: maxTokens, temperature: 0.9 },
-    }),
+    body: JSON.stringify(body),
   });
-  const data = await res.json();
+
+  const raw = await res.text();
+  let data: any;
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = { raw };
+  }
+
   return { res, data };
 }
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  const suppliedKey = req.headers.get("apikey");
-  if (suppliedKey !== EXPECTED_APIKEY) {
-    return new Response(JSON.stringify({ error: "Ungültiger oder fehlender apikey-Header." }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  if (req.method !== "POST") {
+    return json({ error: "Method not allowed" }, 405);
   }
 
+  const geminiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!geminiKey) {
+    return json(
+      { error: "GEMINI_API_KEY não configurada nos Secrets da Edge Function." },
+      500,
+    );
+  }
+
+  // Optional authentication guard. If SUPABASE_ANON_KEY is configured,
+  // require the client to send the same publishable key in `apikey`.
+  const expectedAnonKey = Deno.env.get("SUPABASE_ANON_KEY");
+  if (expectedAnonKey) {
+    const suppliedKey = req.headers.get("apikey");
+    if (suppliedKey !== expectedAnonKey) {
+      return json({ error: "Unauthorized" }, 401);
+    }
+  }
+
+  let requestBody: any;
   try {
-    const { prompt, max_tokens } = await req.json();
-    if (!prompt || typeof prompt !== "string") {
-      return new Response(JSON.stringify({ error: "Feld 'prompt' (string) ist erforderlich." }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const apiKey = Deno.env.get("GEMINI_API_KEY");
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: "GEMINI_API_KEY ist auf dem Server nicht konfiguriert." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const maxTokens = typeof max_tokens === "number" ? max_tokens : 1000;
-
-    let { res, data } = await chamarGemini(MODEL_PRIMARY, apiKey, prompt, maxTokens);
-
-    // Bei Rate-Limit (429) oder Serverfehler auf das Fallback-Modell wechseln.
-    if (!res.ok && (res.status === 429 || res.status >= 500)) {
-      ({ res, data } = await chamarGemini(MODEL_FALLBACK, apiKey, prompt, maxTokens));
-    }
-
-    if (!res.ok) {
-      return new Response(JSON.stringify({ error: data?.error?.message || "Gemini-Fehler", raw: data }), {
-        status: res.status,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || "").join("") || "";
-
-    // Antwort in das gleiche Format bringen, das der Frontend-Code erwartet
-    // (kompatibel mit dem früheren Anthropic-Response-Format).
-    return new Response(JSON.stringify({ content: [{ type: "text", text }] }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err) }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    requestBody = await req.json();
+  } catch {
+    return json({ error: "Invalid JSON body" }, 400);
   }
+
+  // The frontend can send a Gemini generateContent body directly.
+  // We also accept { prompt, systemInstruction, generationConfig } for convenience.
+  const body =
+    requestBody?.contents
+      ? requestBody
+      : {
+          systemInstruction: requestBody?.systemInstruction
+            ? { parts: [{ text: String(requestBody.systemInstruction) }] }
+            : undefined,
+          contents: [
+            {
+              role: "user",
+              parts: [{ text: String(requestBody?.prompt ?? "") }],
+            },
+          ],
+          generationConfig: requestBody?.generationConfig,
+        };
+
+  if (
+    !body.contents?.[0]?.parts?.length ||
+    !body.contents[0].parts.some((p: any) => typeof p?.text === "string")
+  ) {
+    return json({ error: "Missing prompt/contents" }, 400);
+  }
+
+  const models = [PRIMARY_MODEL, ...FALLBACK_MODELS];
+  let lastError: any = null;
+
+  for (const model of models) {
+    const { res, data } = await callGemini(model, geminiKey, body);
+
+    if (res.ok) {
+      const text = extractText(data);
+      return json({
+        text,
+        model,
+        response: data,
+      });
+    }
+
+    lastError = {
+      status: res.status,
+      model,
+      error: data?.error || data,
+    };
+
+    // Try the next model for model-not-found, permission, rate-limit,
+    // or transient server errors. Other client errors are returned immediately.
+    const shouldFallback =
+      res.status === 400 ||
+      res.status === 403 ||
+      res.status === 404 ||
+      res.status === 429 ||
+      res.status >= 500;
+
+    if (!shouldFallback) break;
+  }
+
+  return json(
+    {
+      error: "Gemini request failed",
+      details: lastError,
+      modelsTried: models,
+    },
+    502,
+  );
 });
