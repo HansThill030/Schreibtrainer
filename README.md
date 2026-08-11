@@ -30,12 +30,39 @@ não tem mais a política de rede restrita do artifact — o `fetch()` para
 3. Segue o fluxo — não precisa de build, é só arquivos estáticos
 
 ## Nota sobre a API da Anthropic
-As chamadas para `api.anthropic.com/v1/messages` funcionam sem API key
-somente dentro do ambiente de Artifacts do Claude.ai. Fora dele (num site
-publicado de verdade), você vai precisar:
-- Ou hospedar um pequeno backend/proxy que injeta sua própria API key da Anthropic
-- Ou trocar as chamadas por outra forma de acesso ao modelo (ex: via seu próprio
-  backend em Supabase Edge Functions, Vercel Functions, etc.)
+As chamadas de IA agora passam pela Edge Function `claude-proxy` (pasta
+`supabase/functions/claude-proxy/`), que guarda sua API key da Anthropic no
+servidor — nunca fica exposta no site.
 
-Isso é a próxima peça que falta pra funcionar 100% fora do Claude.ai — me avisa
-quando quiser resolver essa parte.
+### Deploy da Edge Function (via Dashboard, sem precisar de CLI)
+
+1. Pega uma API key em https://console.anthropic.com/settings/keys (se ainda não tiver)
+2. No Supabase: menu lateral → **Edge Functions** → **Create a new function**
+3. Nome da function: `claude-proxy`
+4. Cola o conteúdo de `supabase/functions/claude-proxy/index.ts` no editor
+5. Deploy
+6. Depois de criada, vai em **Manage secrets** (ou Project Settings → Edge Functions → Secrets)
+   e adiciona:
+   - Nome: `ANTHROPIC_API_KEY`
+   - Valor: sua key da Anthropic (começa com `sk-ant-...`)
+7. Testa direto no navegador ou com curl:
+   ```bash
+   curl -X POST 'https://omgsadypqptedpuokgkh.supabase.co/functions/v1/claude-proxy' \
+     -H 'Content-Type: application/json' \
+     -H 'apikey: sb_publishable_dpL6--lbprFHSsctLRlRgA_qpm_jdft' \
+     -d '{"prompt": "Sag nur Hallo auf Deutsch.", "max_tokens": 50}'
+   ```
+   Se voltar um JSON com `"content":[{"type":"text","text":"Hallo!"}]`, está funcionando.
+
+### Alternativa via CLI (se preferir)
+```bash
+npm install -g supabase
+supabase login
+supabase link --project-ref omgsadypqptedpuokgkh
+supabase functions deploy claude-proxy
+supabase secrets set ANTHROPIC_API_KEY=sk-ant-sua-key-aqui
+```
+
+⚠️ **Custo**: cada chamada de IA (gerar tema ou corrigir texto) consome créditos
+da sua conta Anthropic diretamente — diferente do artifact do Claude.ai, que
+não custa nada extra. Vale acompanhar o uso em console.anthropic.com/settings/usage.

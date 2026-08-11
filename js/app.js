@@ -65,13 +65,19 @@ function pickReferences(){
   return shuffled.slice(0,2);
 }
 
-/* ---------- Claude API ---------- */
+/* ---------- Claude API (via Supabase Edge Function claude-proxy) ---------- */
 async function callClaude(userPrompt, maxTokens){
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:maxTokens||1000, messages:[{role:"user", content:userPrompt}] })
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/claude-proxy`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY
+    },
+    body: JSON.stringify({ prompt: userPrompt, max_tokens: maxTokens || 1000 })
   });
   const data = await response.json();
+  if (data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
   const textBlock = (data.content || []).find(c => c.type === "text");
   return textBlock ? textBlock.text : "";
 }
