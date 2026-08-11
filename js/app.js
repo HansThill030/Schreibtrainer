@@ -29,14 +29,8 @@ const $ = id => document.getElementById(id);
 function currentMeta(){ return TEXTSORTEN[state.niveau].find(t => t.key === state.tipoKey); }
 
 /* ---------- Supabase ---------- */
-const SUPABASE_URL =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_URL) ||
-  window.__SUPABASE_URL__ ||
-  "";
-const SUPABASE_KEY =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_SUPABASE_ANON_KEY) ||
-  window.__SUPABASE_ANON_KEY__ ||
-  "";
+const SUPABASE_URL = window.__SUPABASE_URL__ || "";
+const SUPABASE_KEY = window.__SUPABASE_ANON_KEY__ || "";
 
 function assertSupabaseConfig() {
   if (!SUPABASE_URL || !SUPABASE_KEY) {
@@ -103,7 +97,7 @@ function pickReferences(){
   return indices.map(i => comNumero[i].item);
 }
 
-/* ---------- Claude API (via Supabase Edge Function claude-proxy) ---------- */
+/* ---------- Gemini API (via Supabase Edge Function gemini-proxy) ---------- */
 async function callGemini(userPrompt, maxTokens){
   assertSupabaseConfig();
   const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
@@ -115,10 +109,15 @@ async function callGemini(userPrompt, maxTokens){
     },
     body: JSON.stringify({ prompt: userPrompt, max_tokens: maxTokens || 1000 })
   });
-  const data = await response.json();
-  if (data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
-  const textBlock = (data.content || []).find(c => c.type === "text");
-  return textBlock ? textBlock.text : "";
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const detail = data?.error || data?.details || `HTTP ${response.status}`;
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+  if (data.error) {
+    throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+  }
+  return data.text || "";
 }
 function extractJson(text){
   const cleaned = text.replace(/```json/g,'').replace(/```/g,'').trim();

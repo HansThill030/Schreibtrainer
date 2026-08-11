@@ -1,0 +1,7 @@
+{
+  "name": "schreibtrainer",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/generate-config.cjs"
+  }
+}

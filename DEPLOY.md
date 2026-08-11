@@ -1,44 +1,52 @@
-# Schreibtrainer — configuração corrigida
+# Schreibtrainer — versão corrigida
 
-## Vercel
+## 1. Vercel
 
-Crie estas Environment Variables:
+Em **Project Settings → Environment Variables**, crie:
 
-```env
-VITE_SUPABASE_URL=https://omgsadypqptedpuokgkh.supabase.co
-VITE_SUPABASE_ANON_KEY=SEU_SUPABASE_PUBLISHABLE_KEY
-```
+- `VITE_SUPABASE_URL` = `https://omgsadypqptedpuokgkh.supabase.co`
+- `VITE_SUPABASE_ANON_KEY` = sua chave publishable/anon do Supabase
 
-Ative para Production, Preview e Development.
+Marque **Production**, **Preview** e **Development**.
 
-## Supabase Edge Function
+O build do Vercel gera automaticamente `js/config.js`. A chave publishable/anon pode aparecer no frontend; a chave Gemini não.
 
-Na função `gemini-proxy`, configure o secret obrigatório:
+## 2. Supabase
 
-```text
-GEMINI_API_KEY=SEU_GEMINI_API_KEY
-```
+Em **Edge Functions → Secrets**, configure:
 
-Opcionalmente, para manter a proteção por `apikey`:
+- `GEMINI_API_KEY` = sua chave da Gemini API
+- `SUPABASE_ANON_KEY` = a mesma chave publishable/anon usada no Vercel (opcional, mas recomendada)
 
-```text
-SUPABASE_ANON_KEY=O_MESMO_VALOR_DE_VITE_SUPABASE_ANON_KEY
-```
-
-Se `SUPABASE_ANON_KEY` não for configurada, a função não exige o header `apikey`.
-
-### Deploy
+Depois publique:
 
 ```bash
-supabase login
 supabase link --project-ref omgsadypqptedpuokgkh
-supabase secrets set GEMINI_API_KEY=SEU_GEMINI_API_KEY
-supabase secrets set SUPABASE_ANON_KEY=SEU_SUPABASE_PUBLISHABLE_KEY
 supabase functions deploy gemini-proxy
 ```
 
-Depois faça um novo deploy do site no Vercel.
+Se ainda não criou os secrets:
 
-## Importante
+```bash
+supabase secrets set GEMINI_API_KEY=SEU_GEMINI_API_KEY
+supabase secrets set SUPABASE_ANON_KEY=SUA_CHAVE_PUBLISHABLE
+```
 
-Não coloque `GEMINI_API_KEY` no Vercel nem no frontend.
+## 3. Por que a página tinha ficado vazia
+
+O `app.js` era carregado como um script JavaScript comum, mas a versão anterior usava `import.meta.env`. `import.meta` só pode ser usado em módulos ES; o navegador interrompia o parsing do arquivo inteiro. Por isso os elementos da configuração não eram renderizados.
+
+A versão atual usa `js/config.js`, gerado no build do Vercel, e não usa `import.meta` no navegador.
+
+## 4. Gemini
+
+A Edge Function usa `gemini-2.5-flash-lite` como primeira opção e `gemini-2.5-flash` como fallback. O Flash-Lite estável é listado atualmente pela documentação oficial do Gemini API.
+
+## Vercel: configuração do frontend
+
+O `app.js` é um JavaScript normal carregado por `<script src="js/app.js">`, portanto ele **não usa `import.meta.env`**.
+No build do Vercel, `scripts/generate-config.cjs` lê `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`
+e gera `js/config.js`.
+
+Se aparecer `Cannot use 'import.meta' outside a module`, essa mensagem vem de uma implantação antiga.
+Faça um novo deploy deste ZIP e confirme que o build executou `npm run build`.
