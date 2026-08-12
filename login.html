@@ -80,7 +80,15 @@ const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
 const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// Se já está logado, redireciona
+// Escuta mudanças de sessão — isso captura tanto login normal quanto
+// o redirect do Google OAuth que chega via URL fragment (#access_token=...)
+supabase.auth.onAuthStateChange((event, session) => {
+  if (session) {
+    location.href = 'trainer.html#/config';
+  }
+});
+
+// Também verifica sessão já existente (caso volte à página já logado)
 const { data: { session } } = await supabase.auth.getSession();
 if (session) location.href = 'trainer.html#/config';
 
