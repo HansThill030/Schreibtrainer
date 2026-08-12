@@ -70,7 +70,10 @@
   <section class="page" id="page-schreiben">
     <div class="schreiben-header">
       <h2 class="screen-title">Dein Text</h2>
-      <div id="cronometro" class="cronometro">--:--</div>
+      <div style="display:flex;gap:10px;align-items:center;">
+        <button class="ghost" id="btnVerAufgabe" style="font-size:0.7rem;padding:7px 12px;">📋 Aufgabe</button>
+        <div id="cronometro" class="cronometro">--:--</div>
+      </div>
     </div>
     <div class="mini-aufgabe" id="miniAufgabe"></div>
     <div class="schreibfeld-wrap">
@@ -86,16 +89,30 @@
     </div>
   </section>
 
+  <!-- Modal: Aufgabenblatt -->
+  <div class="aufgaben-overlay" id="aufgabenOverlay">
+    <div class="aufgaben-modal">
+      <div class="aufgaben-modal-head">
+        <span id="modalAufgabeTag"></span>
+        <button class="modal-close-btn" id="btnFecharModal">&times;</button>
+      </div>
+      <div class="aufgaben-modal-body">
+        <div class="baloes-modal" id="baloesModal" style="display:none;"></div>
+        <div class="aufgabe-text" id="modalAufgabeText" style="margin-top:14px;font-size:0.95rem;line-height:1.6;white-space:pre-wrap;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- PAGE 5: Korrektur -->
   <section class="page" id="page-korrektur">
     <h2 class="screen-title">Korrektur</h2>
     <div class="loading-big" id="loadingResult"><div class="spin"></div>Text wird analysiert&hellip;</div>
     <div class="feedback" id="feedback" style="display:none;">
       <div class="stamp" id="stamp"><div class="niveau" id="stampNiveau">B1</div><div class="tag" id="stampTag">erreicht</div></div>
-      <div class="fb-section"><h3>Aufgabenerfüllung</h3><p id="fbErfuellung"></p></div>
-      <div class="fb-section"><h3>Aufbau &amp; Struktur</h3><p id="fbAufbau"></p></div>
-      <div class="fb-section"><h3>Sprache</h3><p id="fbSprache"></p></div>
-      <div class="fb-section"><h3>Korrekturen</h3><ul class="korrekturen" id="korrekturenList"></ul></div>
+      <div class="fb-section"><h3>Schritt 2 · Bewertung nach DSD-I-Kriterien</h3><div id="fbErfuellung"></div></div>
+      <div class="fb-section"><h3>Niveaueinschätzung</h3><p id="fbAufbau"></p></div>
+      <div class="fb-section"><h3>Schritt 4 · Sprachliche Analyse</h3><div id="fbSprache"></div></div>
+      <div class="fb-section"><h3>Schritt 5 · Schülerfeedback</h3><ul class="korrekturen" id="korrekturenList"></ul></div>
       <div class="tip-box" id="fbTip"></div>
     </div>
     <div class="nav-row">

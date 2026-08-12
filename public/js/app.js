@@ -406,21 +406,83 @@ if ($('btnSenden')) $('btnSenden').addEventListener('click', async () => {
 /* ---------- Page: korrektur ---------- */
 async function runKorrektur(text){
   const meta = currentMeta();
-  const quelltextInfo = state.aufgabaObj.quelltext ? `\nAusgangstext/Forum-Aussagen/Grafikbeschreibung: ${state.aufgabaObj.quelltext}` : '';
-  try {
-    const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte folgenden Schülertext für die Textsorte "${meta.label}" auf Zielniveau ${state.niveau} (Schwierigkeitsgrad der Aufgabe: ${state.schwierigkeit}/8). Sei präzise und schnell, keine langen Einleitungen.
-Aufgabe: ${state.aufgabaObj.aufgabe}${quelltextInfo}
-Schülertext:
+  const quelltextInfo = state.aufgabaObj.quelltext
+    ? `\nForum-Aussagen/Ausgangstext:\n${state.aufgabaObj.quelltext}` : '';
+  const personenInfo = state.aufgabaObj.personen
+    ? `\nForum-Personen: ${state.aufgabaObj.personen.map(p=>`${p.name}: ${p.aussage}`).join(' | ')}` : '';
+
+  const prompt = `Du bist eine erfahrene DaF-Lehrkraft sowie DSD-I-Prüferin mit umfassender Erfahrung in der Korrektur und Kalibrierung von Schülertexten. Du arbeitest streng nach den offiziellen Bewertungskriterien der Schriftlichen Kommunikation (DSD I, Anlage 12), bewertest jedoch stets wohlwollend und niveaugerecht auf A2/B1-Niveau.
+
+AUFGABE: Analysiere und bewerte die folgende Schülerarbeit zur Schriftlichen Kommunikation im DSD I in fünf Schritten.
+
+PRÜFUNGSAUFGABE:
+Textsorte: ${meta.label}
+Niveau: ${state.niveau}${quelltextInfo}${personenInfo}
+Aufgabentext: ${state.aufgabaObj.aufgabe}
+
+SCHÜLERTEXT:
 """
 ${text}
 """
-Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks, auf Deutsch, kurz und konkret. Format:
-{"niveau_einschaetzung": "z.B. A2, A2+, B1-, B1, B1+, B2-, B2, B2+, C1-, C1", "status": "erreicht" | "knapp erreicht" | "noch nicht erreicht" | "übertroffen", "erfuellung": "1-2 Sätze", "aufbau": "1-2 Sätze", "sprache": "1-2 Sätze", "korrekturen": [{"original":"kurzer fehlerhafter Ausschnitt","korrektur":"korrigierte Version","erklaerung":"kurze Erklärung"}], "tipp": "ein konkreter nächster Schritt"}
-Maximal 6 Korrekturen, wichtigste zuerst.`;
-    const raw = await callGemini(prompt, 4000);
+
+WICHTIGE BEWERTUNGSGRUNDSÄTZE:
+- DSD-I-Niveau (A2/B1) als Maßstab
+- Wohlwollende Bewertung
+- Verständlichkeit hat Vorrang vor Fehlerfreiheit
+- Strukturen (Kategorie 6) und Grammatik (Kategorie 7) STRIKT GETRENNT bewerten — Strukturen = Vielfalt und Angemessenheit, Grammatik = Korrektheit
+- Jede Punktevergabe mit konkreten Textbelegen begründen
+- Bei Grenzfällen transparent erläutern
+
+Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Alle Felder auf Deutsch. Format:
+{
+  "schritt1_transkription": [{"zeile": 1, "text": "Zeile 1 des Textes..."}, {"zeile": 2, "text": "..."}],
+  "schritt2_bewertung": {
+    "gesamteindruck":     {"punkte": 0, "begruendung": "...", "belege_positiv": ["Z.X: '...'"], "belege_schwach": ["Z.X: '...'"]},
+    "wiedergabe":         {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "eigene_erfahrungen": {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "eigene_meinung":     {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "wortschatz":         {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "strukturen":         {"punkte": 0, "begruendung": "WICHTIG: nur Vielfalt/Angemessenheit, NICHT grammatische Korrektheit", "belege_positiv": [], "belege_schwach": []},
+    "grammatik":          {"punkte": 0, "begruendung": "WICHTIG: nur Korrektheit (Satzstellung, Kasus, Verbformen, Kongruenz, Artikel), NICHT Vielfalt", "belege_positiv": [], "belege_schwach": []},
+    "orthografie":        {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []}
+  },
+  "schritt3_belegsammlung": {
+    "gesamtpunkte": 0,
+    "max_punkte": 24,
+    "niveaueinschaetzung": "A2 | A2+ | B1 knapp erreicht | B1 erreicht | B1 sicher erreicht",
+    "niveaubegruendung": "..."
+  },
+  "schritt4_sprachanalyse": {
+    "gelungene_strukturen": [{"typ": "weil-Satz", "beleg": "Z.X: '...'"}],
+    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Nebensatzstellung", "zeile": 0}],
+    "orthografiefehler": [{"original": "...", "zielschreibung": "...", "zeile": 0}],
+    "wortschatz": {"positiv": ["..."], "auffaelligkeiten": ["..."]}
+  },
+  "schritt5_feedback": {
+    "gut_gelungen": ["...", "...", "..."],
+    "verbessern": ["...", "...", "..."],
+    "naechstes_lernziel": "..."
+  }
+}
+Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.`;
+
+  try {
+    const raw = await callGemini(prompt, 6000);
     const json = extractJson(raw);
     renderFeedback(json);
-    await salvarHistorico(state._textoEnviado || '', json);
+    // Salva versão simplificada no histórico (retrocompatível)
+    const feedbackSimples = {
+      niveau_einschaetzung: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+      status: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+      erfuellung: json.schritt2_bewertung?.gesamteindruck?.begruendung || '',
+      aufbau: json.schritt2_bewertung?.strukturen?.begruendung || '',
+      sprache: json.schritt2_bewertung?.grammatik?.begruendung || '',
+      tipp: json.schritt5_feedback?.naechstes_lernziel || '',
+      korrekturen: (json.schritt4_sprachanalyse?.grammatikfehler || []).map(f => ({
+        original: f.original, korrektur: f.zielstruktur, erklaerung: f.kategorie
+      }))
+    };
+    await salvarHistorico(state._textoEnviado || '', feedbackSimples);
   } catch(e) {
     console.error(e);
     $('loadingResult').style.display = 'none';
@@ -428,20 +490,99 @@ Maximal 6 Korrekturen, wichtigste zuerst.`;
     $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
   }
 }
+
 function renderFeedback(json){
-  $('stampNiveau').textContent = json.niveau_einschaetzung || '—';
-  $('stampTag').textContent = json.status || '';
-  $('fbErfuellung').textContent = json.erfuellung || '';
-  $('fbAufbau').textContent = json.aufbau || '';
-  $('fbSprache').textContent = json.sprache || '';
-  $('fbTip').textContent = '→ ' + (json.tipp || '');
+  const s2 = json.schritt2_bewertung || {};
+  const s3 = json.schritt3_belegsammlung || {};
+  const s4 = json.schritt4_sprachanalyse || {};
+  const s5 = json.schritt5_feedback || {};
+
+  // Carimbo
+  $('stampNiveau').textContent = s3.niveaueinschaetzung || '—';
+  $('stampTag').textContent = `${s3.gesamtpunkte ?? '?'} / ${s3.max_punkte ?? 24} Punkte`;
+
+  // Seção 1: Bewertung (8 categorias em tabela)
+  const kategorien = [
+    { key:'gesamteindruck',     label:'Gesamteindruck' },
+    { key:'wiedergabe',         label:'Wiedergabe' },
+    { key:'eigene_erfahrungen', label:'Eigene Erfahrungen' },
+    { key:'eigene_meinung',     label:'Eigene Meinung' },
+    { key:'wortschatz',         label:'Wortschatz' },
+    { key:'strukturen',         label:'Strukturen' },
+    { key:'grammatik',          label:'Grammatik' },
+    { key:'orthografie',        label:'Orthografie' },
+  ];
+
+  let bewertungHTML = `<table class="fb-table"><thead><tr><th>Kategorie</th><th>Pkt</th><th>Begründung</th></tr></thead><tbody>`;
+  let gesamtPunkte = 0;
+  kategorien.forEach(k => {
+    const kat = s2[k.key] || {};
+    const p = kat.punkte ?? '?';
+    if (typeof p === 'number') gesamtPunkte += p;
+    const pos = (kat.belege_positiv || []).map(b => `<span class="beleg-pos">✓ ${escapeHtml(b)}</span>`).join('');
+    const neg = (kat.belege_schwach || []).map(b => `<span class="beleg-neg">✗ ${escapeHtml(b)}</span>`).join('');
+    bewertungHTML += `<tr>
+      <td class="kat-name">${k.label}</td>
+      <td class="kat-punkte">${p}/3</td>
+      <td>${escapeHtml(kat.begruendung||'')}${pos?'<br>'+pos:''}${neg?'<br>'+neg:''}</td>
+    </tr>`;
+  });
+  bewertungHTML += `<tr class="gesamt-row"><td colspan="2"><strong>Gesamt</strong></td><td><strong>${s3.gesamtpunkte ?? gesamtPunkte} / 24</strong></td></tr></tbody></table>`;
+  $('fbErfuellung').innerHTML = bewertungHTML;
+
+  // Seção 2: Niveaueinschätzung
+  $('fbAufbau').innerHTML = `<strong>${escapeHtml(s3.niveaueinschaetzung||'—')}</strong> — ${escapeHtml(s3.niveaubegruendung||'')}`;
+
+  // Seção 3: Sprachanalyse
+  let analyseHTML = '';
+
+  // Gelungene Strukturen
+  if ((s4.gelungene_strukturen||[]).length) {
+    analyseHTML += '<strong>✓ Gelungene Strukturen</strong><ul class="analyse-list">';
+    (s4.gelungene_strukturen||[]).forEach(g => {
+      analyseHTML += `<li><em>${escapeHtml(g.typ)}</em> — ${escapeHtml(g.beleg)}</li>`;
+    });
+    analyseHTML += '</ul>';
+  }
+
+  // Grammatikfehler
+  if ((s4.grammatikfehler||[]).length) {
+    analyseHTML += '<strong>✗ Grammatikfehler</strong><ul class="analyse-list">';
+    (s4.grammatikfehler||[]).forEach(f => {
+      analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)} (Z.${f.zeile})</span></li>`;
+    });
+    analyseHTML += '</ul>';
+  }
+
+  // Orthografiefehler
+  if ((s4.orthografiefehler||[]).length) {
+    analyseHTML += '<strong>✗ Orthografiefehler</strong><ul class="analyse-list">';
+    (s4.orthografiefehler||[]).forEach(f => {
+      analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span><span class="erkl">Z.${f.zeile}</span></li>`;
+    });
+    analyseHTML += '</ul>';
+  }
+
+  $('fbSprache').innerHTML = analyseHTML || '—';
+
+  // Seção 4: Korrekturen list -> reutiliza pra Schülerfeedback
   const list = $('korrekturenList');
   list.innerHTML = '';
-  (json.korrekturen || []).forEach(k => {
+  const gut = s5.gut_gelungen || [];
+  const verb = s5.verbessern || [];
+  gut.forEach(g => {
     const li = document.createElement('li');
-    li.innerHTML = `<span class="orig">${escapeHtml(k.original)}</span> → <span class="korr">${escapeHtml(k.korrektur)}</span><span class="erkl">${escapeHtml(k.erklaerung)}</span>`;
+    li.innerHTML = `<span class="korr">✓</span> ${escapeHtml(g)}`;
     list.appendChild(li);
   });
+  verb.forEach(v => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="orig">→</span> ${escapeHtml(v)}`;
+    list.appendChild(li);
+  });
+
+  $('fbTip').textContent = '🎯 Nächstes Lernziel: ' + (s5.naechstes_lernziel || '');
+
   $('loadingResult').style.display = 'none';
   $('feedback').style.display = 'block';
   const stamp = $('stamp');
@@ -560,3 +701,44 @@ async function carregarHistorico(){
 // Hook salvar histórico depois de renderFeedback
 const _renderFeedbackOriginal = renderFeedback;
 // Substituir a chamada em runKorrektur para capturar texto + feedback
+
+/* ================================================================
+   MODAL AUFGABENBLATT
+   ================================================================ */
+function abrirModalAufgabe(){
+  if (!state.aufgabaObj) return;
+  const overlay = document.getElementById('aufgabenOverlay');
+  const meta = currentMeta();
+
+  document.getElementById('modalAufgabeTag').textContent =
+    `${state.niveau} · ${meta.label} · Schwierigkeit ${state.schwierigkeit}/8`;
+
+  // Balões (só B1)
+  const baloesModal = document.getElementById('baloesModal');
+  if (state.aufgabaObj.personen && state.aufgabaObj.personen.length) {
+    baloesModal.innerHTML = state.aufgabaObj.personen
+      .map(p => `<div class="balloon"><span class="name">${escapeHtml(p.name)}</span>${escapeHtml(p.aussage)}</div>`)
+      .join('');
+    baloesModal.style.display = 'grid';
+  } else {
+    baloesModal.style.display = 'none';
+    baloesModal.innerHTML = '';
+  }
+
+  document.getElementById('modalAufgabeText').textContent = state.aufgabaObj.aufgabe || '';
+  overlay.classList.add('show');
+}
+
+function fecharModalAufgabe(){
+  document.getElementById('aufgabenOverlay')?.classList.remove('show');
+}
+
+document.getElementById('btnVerAufgabe')?.addEventListener('click', abrirModalAufgabe);
+document.getElementById('btnFecharModal')?.addEventListener('click', fecharModalAufgabe);
+document.getElementById('aufgabenOverlay')?.addEventListener('click', (e) => {
+  if (e.target.id === 'aufgabenOverlay') fecharModalAufgabe();
+});
+// Fecha com Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') fecharModalAufgabe();
+});

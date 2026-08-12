@@ -156,3 +156,74 @@ textarea::placeholder{color:#b8b2a0;font-style:italic;}
 .cronometro.aviso{color:var(--seal);}
 .cronometro.esgotado{color:var(--rule-red);animation:pulsar .8s ease infinite alternate;}
 @keyframes pulsar{from{opacity:1;}to{opacity:0.4;}}
+
+/* Modal Aufgabenblatt */
+.aufgaben-overlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(38,38,31,0.6);
+  z-index:100;
+  padding:20px 16px;
+  overflow-y:auto;
+  align-items:flex-start;
+  justify-content:center;
+}
+.aufgaben-overlay.show{display:flex;animation:fadeIn .2s ease;}
+.aufgaben-modal{
+  background:var(--paper-card);
+  border:1px solid var(--line);
+  border-radius:6px;
+  max-width:660px;
+  width:100%;
+  margin:auto;
+  overflow:hidden;
+}
+.aufgaben-modal-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:14px 18px;
+  border-bottom:1px solid var(--line);
+  font-family:'IBM Plex Mono',monospace;
+  font-size:0.72rem;
+  text-transform:uppercase;
+  letter-spacing:0.06em;
+  color:var(--ink-soft);
+}
+.modal-close-btn{
+  background:none;
+  border:none;
+  font-size:1.4rem;
+  color:var(--ink-soft);
+  cursor:pointer;
+  line-height:1;
+  padding:0 4px;
+}
+.modal-close-btn:hover{color:var(--rule-red);}
+.aufgaben-modal-body{
+  padding:18px 20px 22px;
+  max-height:80vh;
+  overflow-y:auto;
+}
+.baloes-modal{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-bottom:4px;
+}
+@media(max-width:500px){.baloes-modal{grid-template-columns:1fr;}}
+
+/* Tabela de Bewertung */
+.fb-table{width:100%;border-collapse:collapse;font-size:0.85rem;margin-top:8px;}
+.fb-table th{font-family:'IBM Plex Mono',monospace;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-soft);padding:8px 10px;text-align:left;border-bottom:2px solid var(--line);}
+.fb-table td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.45;}
+.fb-table tr:last-child td{border-bottom:none;}
+.fb-table .kat-name{font-weight:600;white-space:nowrap;}
+.fb-table .kat-punkte{font-family:'IBM Plex Mono',monospace;font-size:0.9rem;color:var(--rule-red);font-weight:600;white-space:nowrap;}
+.fb-table .gesamt-row td{background:var(--paper);font-family:'IBM Plex Mono',monospace;}
+.beleg-pos{display:block;font-size:0.78rem;color:var(--sage);margin-top:3px;}
+.beleg-neg{display:block;font-size:0.78rem;color:var(--rule-red);margin-top:3px;}
+.analyse-list{margin:6px 0 12px 0;padding:0;list-style:none;}
+.analyse-list li{padding:7px 0;border-top:1px dashed var(--line);font-size:0.88rem;line-height:1.5;}
+.analyse-list li:first-child{border-top:none;}
