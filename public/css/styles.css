@@ -227,3 +227,69 @@ textarea::placeholder{color:#b8b2a0;font-style:italic;}
 .analyse-list{margin:6px 0 12px 0;padding:0;list-style:none;}
 .analyse-list li{padding:7px 0;border-top:1px dashed var(--line);font-size:0.88rem;line-height:1.5;}
 .analyse-list li:first-child{border-top:none;}
+
+/* Modus-Tabs */
+.modus-tabs{display:flex;gap:8px;margin-bottom:16px;}
+.modus-tab{
+  flex:1;
+  font-family:'IBM Plex Mono',monospace;
+  font-size:0.75rem;
+  letter-spacing:0.04em;
+  padding:10px 14px;
+  border-radius:3px;
+  cursor:pointer;
+  border:1.5px solid var(--line);
+  background:var(--paper-card);
+  color:var(--ink-soft);
+  transition:all .15s;
+}
+.modus-tab.active{
+  background:var(--ink);
+  border-color:var(--ink);
+  color:var(--paper-card);
+}
+
+/* Modellsatz Picker Grid */
+.ms-picker-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(180px,1fr));
+  gap:10px;
+  margin-bottom:16px;
+}
+.ms-card{
+  background:var(--paper-card);
+  border:1.5px solid var(--line);
+  border-radius:4px;
+  padding:12px 14px;
+  cursor:pointer;
+  transition:border-color .15s, background .15s;
+}
+.ms-card:hover{border-color:var(--ink-soft);}
+.ms-card.selected{border-color:var(--rule-red);background:#fff;}
+.ms-card .ms-num{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:0.62rem;
+  letter-spacing:0.08em;
+  color:var(--rule-red);
+  display:block;
+  margin-bottom:4px;
+  text-transform:uppercase;
+}
+.ms-card .ms-thema{
+  font-family:'Fraunces',serif;
+  font-weight:600;
+  font-size:1rem;
+}
+.ms-card .ms-type{
+  font-size:0.72rem;
+  color:var(--ink-soft);
+  margin-top:3px;
+  font-family:'IBM Plex Mono',monospace;
+}
+.ms-empty{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:0.75rem;
+  color:var(--ink-soft);
+  padding:10px 0;
+}
+@media(max-width:480px){.modus-tabs{flex-direction:column;}}

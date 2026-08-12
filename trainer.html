@@ -49,13 +49,27 @@
   <!-- PAGE 3: Aufgabe -->
   <section class="page" id="page-aufgabe">
     <h2 class="screen-title">Aufgabe</h2>
+
+    <!-- Modus-Tabs -->
+    <div class="modus-tabs">
+      <button class="modus-tab active" id="tabNeu" data-modus="neu">🎲 Neues Thema</button>
+      <button class="modus-tab" id="tabReal" data-modus="real">📄 Echter Modellsatz</button>
+    </div>
+
+    <!-- Picker: Modellsatz real -->
+    <div id="modellsatzPicker" style="display:none;">
+      <div class="ms-picker-grid" id="msPickerGrid">
+        <!-- preenchido pelo JS -->
+      </div>
+    </div>
+
     <div class="aufgabe-card">
       <div class="label"><span id="aufgabeTag"></span><span id="aufgabeSchwierigkeit"></span></div>
       <div class="aufgabe-text" id="aufgabeText">—</div>
       <div class="quelltext" id="quelltext" style="display:none;"></div>
       <div class="baloes" id="baloes" style="display:none;"></div>
       <div class="ref-note" id="refNote"></div>
-      <div class="card-actions">
+      <div class="card-actions" id="cardActionsAufgabe">
         <button class="primary" id="btnGerarIA">🎲 Neues Thema generieren</button>
         <span class="loading-inline" id="loadingIA" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--ink-soft);">wird erstellt&hellip;</span>
       </div>
