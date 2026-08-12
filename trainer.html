@@ -26,43 +26,53 @@
 
   <!-- PAGE 2: Konfiguration -->
   <section class="page" id="page-config">
-    <h2 class="screen-title">Niveau, Textsorte &amp; Schwierigkeit</h2>
-    <div class="niveau-row" id="niveauRow"></div>
-    <div class="teile" id="teileRow"></div>
 
-    <div class="diff-block">
-      <div class="diff-head">
-        <span class="label">Schwierigkeitsgrad</span>
-        <span class="val" id="diffVal">4</span>
+    <!-- Modus-Tabs no topo da config -->
+    <div class="modus-tabs" style="margin-bottom:20px;">
+      <button class="modus-tab active" data-modus="neu">🎲 Neues Thema generieren</button>
+      <button class="modus-tab" data-modus="real">📄 Echter Modellsatz üben</button>
+    </div>
+
+    <!-- Bloco: Neues Thema -->
+    <div id="blocoNeu">
+      <h2 class="screen-title" style="margin-bottom:14px;">Niveau, Textsorte &amp; Schwierigkeit</h2>
+      <div class="niveau-row" id="niveauRow"></div>
+      <div class="teile" id="teileRow"></div>
+      <div class="diff-block">
+        <div class="diff-head">
+          <span class="label">Schwierigkeitsgrad</span>
+          <span class="val" id="diffVal">4</span>
+        </div>
+        <input type="range" min="1" max="8" value="4" id="diffSlider">
+        <div class="diff-scale"><span>1 · leicht</span><span>8 · anspruchsvoll</span></div>
+        <div class="diff-hint">Steuert, wie anspruchsvoll Wortschatz, Thema und Aufgabenstellung innerhalb des gewählten Niveaus sind.</div>
       </div>
-      <input type="range" min="1" max="8" value="4" id="diffSlider">
-      <div class="diff-scale"><span>1 · leicht</span><span>8 · anspruchsvoll</span></div>
-      <div class="diff-hint">Steuert, wie anspruchsvoll Wortschatz, Thema und Aufgabenstellung innerhalb des gewählten Niveaus sind.</div>
+      <div class="nav-row">
+        <span></span>
+        <button class="primary" id="btnToAufgabe">Weiter →</button>
+      </div>
     </div>
 
-    <div class="nav-row">
-      <span></span>
-      <button class="primary" id="btnToAufgabe">Weiter →</button>
+    <!-- Bloco: Echter Modellsatz -->
+    <div id="blocoReal" style="display:none;">
+      <h2 class="screen-title" style="margin-bottom:6px;">Modellsatz wählen</h2>
+      <p style="font-size:0.85rem;color:var(--ink-soft);margin:0 0 16px;">Wähle einen echten DSD-Modellsatz als Übungsaufgabe.</p>
+
+      <div class="niveau-row" id="niveauRowReal"></div>
+      <div class="teile" id="teileRowReal"></div>
+
+      <div class="ms-picker-grid" id="msPickerGrid"></div>
+      <div class="nav-row">
+        <span></span>
+        <button class="primary" id="btnToSchreibenReal" disabled>Mit dieser Aufgabe schreiben →</button>
+      </div>
     </div>
+
   </section>
 
-  <!-- PAGE 3: Aufgabe -->
+  <!-- PAGE 3: Aufgabe (somente para fluxo Neues Thema) -->
   <section class="page" id="page-aufgabe">
     <h2 class="screen-title">Aufgabe</h2>
-
-    <!-- Modus-Tabs -->
-    <div class="modus-tabs">
-      <button class="modus-tab active" id="tabNeu" data-modus="neu">🎲 Neues Thema</button>
-      <button class="modus-tab" id="tabReal" data-modus="real">📄 Echter Modellsatz</button>
-    </div>
-
-    <!-- Picker: Modellsatz real -->
-    <div id="modellsatzPicker" style="display:none;">
-      <div class="ms-picker-grid" id="msPickerGrid">
-        <!-- preenchido pelo JS -->
-      </div>
-    </div>
-
     <div class="aufgabe-card">
       <div class="label"><span id="aufgabeTag"></span><span id="aufgabeSchwierigkeit"></span></div>
       <div class="aufgabe-text" id="aufgabeText">—</div>

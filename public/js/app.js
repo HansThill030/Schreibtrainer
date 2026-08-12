@@ -375,74 +375,44 @@ Erstelle jetzt eine neue Aufgabe nach diesen Regeln.`;
 
 if ($('btnGerarIA')) $('btnGerarIA').addEventListener('click', gerarComIA);
 
-/* ---------- Modus-Tabs: Neu vs. Echter Modellsatz ---------- */
-let modusAtual = 'neu'; // 'neu' | 'real'
-let msSeleccionado = null; // item do banco selecionado
+/* ---------- Modus-Tabs na config ---------- */
+let modusAtual = 'neu';
+let msSeleccionado = null;
 
 document.querySelectorAll('.modus-tab').forEach(tab => {
   tab.addEventListener('click', () => {
     modusAtual = tab.dataset.modus;
     document.querySelectorAll('.modus-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-
     if (modusAtual === 'real') {
-      $('modellsatzPicker').style.display = 'block';
-      $('cardActionsAufgabe').style.display = 'none';
+      $('blocoNeu').style.display = 'none';
+      $('blocoReal').style.display = 'block';
       renderMsPicker();
-      // Reseta aufgabe card até o aluno selecionar
-      if (!msSeleccionado) {
-        $('aufgabeText').textContent = 'Wähle einen Modellsatz oben aus.';
-        $('quelltext').style.display = 'none';
-        $('baloes').style.display = 'none';
-        $('aufgabeTag').textContent = '';
-        $('aufgabeSchwierigkeit').textContent = '';
-        $('refNote').textContent = '';
-        $('btnToSchreiben').disabled = true;
-      }
     } else {
-      $('modellsatzPicker').style.display = 'none';
-      $('cardActionsAufgabe').style.display = 'flex';
-      msSeleccionado = null;
-      // Mantém aufgabe gerada anteriormente ou pede gerar
-      if (!state.aufgabaObj || state._modoReal) {
-        state.aufgabaObj = null;
-        state._modoReal = false;
-        $('aufgabeText').textContent = 'Klicke auf „Neues Thema generieren".';
-        $('quelltext').style.display = 'none';
-        $('baloes').style.display = 'none';
-        $('aufgabeTag').textContent = '';
-        $('aufgabeSchwierigkeit').textContent = '';
-        $('refNote').textContent = '';
-        $('btnToSchreiben').disabled = true;
-      }
+      $('blocoReal').style.display = 'none';
+      $('blocoNeu').style.display = 'block';
     }
   });
 });
 
 function extrairTema(filename, texto){
-  // Extrai o tema do filename: "DSD I Modellsatz 3 – Zu-spät-Kommen" → "Zu-spät-Kommen"
   const dash = filename?.match(/–\s*(.+)$/);
   if (dash) return dash[1].trim();
-  // Fallback: primeira palavra do texto
   return texto?.split(/[\.\n]/)[0]?.trim()?.split(' ')[0] || '—';
 }
 
 function renderMsPicker(){
+  // Usa o nível e tipo do seletor do modo Real (niveauRowReal / teileRowReal)
   const grid = $('msPickerGrid');
   const grupo = NIVEAU_GROUP[state.niveau];
   const lista = state.bank
     .filter(b => NIVEAU_GROUP[b.niveau] === grupo && b.textsorte === state.tipoKey)
-    .sort((a,b) => {
-      const na = extrairNumeroModellsatz(a.filename) || 99;
-      const nb = extrairNumeroModellsatz(b.filename) || 99;
-      return na - nb;
-    });
+    .sort((a,b) => (extrairNumeroModellsatz(a.filename)||99) - (extrairNumeroModellsatz(b.filename)||99));
 
   if (!lista.length) {
-    grid.innerHTML = `<div class="ms-empty">Keine Modellsätze im Banco für ${state.niveau} · ${currentMeta()?.label || state.tipoKey}.</div>`;
+    grid.innerHTML = `<div class="ms-empty">Keine Modellsätze im Banco für dieses Niveau/Typ.</div>`;
     return;
   }
-
   grid.innerHTML = '';
   lista.forEach(item => {
     const num = extrairNumeroModellsatz(item.filename);
@@ -457,9 +427,63 @@ function renderMsPicker(){
       msSeleccionado = item;
       document.querySelectorAll('.ms-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
-      carregarModellsatzReal(item);
+      $('btnToSchreibenReal').disabled = false;
     });
     grid.appendChild(card);
+  });
+}
+
+/* Nível/Tipo no modo Real — espelha o seletor do modo Neu */
+function renderNiveauRowReal(){
+  const row = $('niveauRowReal');
+  if (!row) return;
+  row.innerHTML = '';
+  NIVEAUS.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'niveau-btn' + (n === state.niveau ? ' active' : '');
+    btn.textContent = n;
+    btn.addEventListener('click', () => {
+      state.niveau = n;
+      state.tipoKey = TEXTSORTEN[n][0].key;
+      renderNiveauRowReal();
+      renderTeileRowReal();
+      msSeleccionado = null;
+      $('btnToSchreibenReal').disabled = true;
+      renderMsPicker();
+    });
+    row.appendChild(btn);
+  });
+}
+function renderTeileRowReal(){
+  const row = $('teileRowReal');
+  if (!row) return;
+  row.innerHTML = '';
+  TEXTSORTEN[state.niveau].forEach(t => {
+    const btn = document.createElement('button');
+    btn.className = 'teil-btn' + (t.key === state.tipoKey ? ' active' : '');
+    btn.innerHTML = `<span class="n">${state.niveau} · ${t.kurz}</span>${t.label}`;
+    btn.addEventListener('click', () => {
+      state.tipoKey = t.key;
+      renderTeileRowReal();
+      msSeleccionado = null;
+      $('btnToSchreibenReal').disabled = true;
+      renderMsPicker();
+    });
+    row.appendChild(btn);
+  });
+}
+
+/* Botão "Com esta tarefa escrever" → pula aufgabe, vai direto pra schreiben */
+if ($('btnToSchreibenReal')) {
+  $('btnToSchreibenReal').addEventListener('click', () => {
+    if (!msSeleccionado) return;
+    carregarModellsatzReal(msSeleccionado);
+    // Prepara mini-aufgabe e vai direto pra schreiben
+    const meta = currentMeta();
+    $('miniAufgabe').textContent = `${meta.label} · Modellsatz ${extrairNumeroModellsatz(msSeleccionado.filename)} · ${extrairTema(msSeleccionado.filename, msSeleccionado.text)}`;
+    state.maxPage = Math.max(state.maxPage, 2);
+    goToPage('schreiben');
+    iniciarCronometro();
   });
 }
 
@@ -469,16 +493,12 @@ function carregarModellsatzReal(item){
   const num = extrairNumeroModellsatz(item.filename);
   const tema = extrairTema(item.filename, item.text);
 
-  // Reconstrói o aufgabaObj a partir do texto do banco
-  // Para B1: separa as falas do fórum do enunciado
   if (state.niveau === 'B1' && (state.tipoKey === 'beitrag' || state.tipoKey === 'leserbrief')) {
-    // Tenta extrair as 4 pessoas do texto do banco
     const linhas = item.text.split(/\n+/);
     const personen = [];
     const pessoaNomeRegex = /^([A-ZÄÖÜ][a-zäöüß]+):\s*(.+)/;
     let aufgabeLinhas = [];
     let dentroAufgabe = false;
-
     linhas.forEach(l => {
       const m = l.match(pessoaNomeRegex);
       if (m && !dentroAufgabe) {
@@ -490,18 +510,15 @@ function carregarModellsatzReal(item){
         aufgabeLinhas.push(l);
       }
     });
-
     const aufgabe = aufgabeLinhas.join('\n').trim() || item.text;
     const quelltext = personen.map(p => `${p.name}: ${p.aussage}`).join('\n\n');
-
     state.aufgabaObj = { aufgabe, quelltext, personen, thema: tema };
-
+    // Popula aufgabe card (usado pelo modal "📋 Aufgabe")
     $('aufgabeTag').textContent = `${state.niveau} · ${meta.label} · Modellsatz ${num}`;
-    $('aufgabeSchwierigkeit').textContent = `Echter Modellsatz`;
+    $('aufgabeSchwierigkeit').textContent = 'Echter Modellsatz';
     $('aufgabeText').textContent = aufgabe;
     $('quelltext').style.display = 'none';
     $('refNote').textContent = item.filename;
-
     if (personen.length) {
       const bal = $('baloes');
       bal.innerHTML = personen.map(p =>
@@ -512,16 +529,14 @@ function carregarModellsatzReal(item){
       $('baloes').style.display = 'none';
     }
   } else {
-    // A2 / C1: texto direto
     state.aufgabaObj = { aufgabe: item.text, quelltext: '', thema: tema };
     $('aufgabeTag').textContent = `${state.niveau} · ${meta.label} · Modellsatz ${num}`;
-    $('aufgabeSchwierigkeit').textContent = `Echter Modellsatz`;
+    $('aufgabeSchwierigkeit').textContent = 'Echter Modellsatz';
     $('aufgabeText').textContent = item.text;
     $('quelltext').style.display = 'none';
     $('baloes').style.display = 'none';
     $('refNote').textContent = item.filename;
   }
-
   $('btnToSchreiben').disabled = false;
 }
 if ($('btnBackToConfig')) $('btnBackToConfig').addEventListener('click', () => goToPage('config'));
@@ -748,6 +763,8 @@ if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textIn
   await loadBank();
   renderNiveauRow();
   renderTeileRow();
+  renderNiveauRowReal();
+  renderTeileRowReal();
   if (!location.hash) location.hash = '#/config';
   onHashChange();
 })();
