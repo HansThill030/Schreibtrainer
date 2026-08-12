@@ -14,7 +14,12 @@
       <h1>Schreibtrainer</h1>
       <div class="sub">Deutsch als Fremdsprache · Schreiben</div>
     </div>
-    <a class="home-link" href="index.html">← Zur Startseite</a>
+    <div style="display:flex;gap:14px;align-items:center;">
+      <span id="userEmail" style="font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--ink-soft);"></span>
+      <a class="home-link" href="historico.html">📋 Verlauf</a>
+      <a class="home-link" href="#" onclick="signOut();return false;">Abmelden</a>
+      <a class="home-link" href="index.html">← Startseite</a>
+    </div>
   </div>
 
   <div class="stepper" id="stepper"></div>
@@ -63,7 +68,10 @@
 
   <!-- PAGE 4: Schreiben -->
   <section class="page" id="page-schreiben">
-    <h2 class="screen-title">Dein Text</h2>
+    <div class="schreiben-header">
+      <h2 class="screen-title">Dein Text</h2>
+      <div id="cronometro" class="cronometro">--:--</div>
+    </div>
     <div class="mini-aufgabe" id="miniAufgabe"></div>
     <div class="schreibfeld-wrap">
       <div class="schreibfeld-head">

@@ -140,3 +140,19 @@ textarea::placeholder{color:#b8b2a0;font-style:italic;}
   .step-dot .lbl{display:none;}
   .hero h2{font-size:1.8rem;}
 }
+
+/* Cronômetro */
+.schreiben-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.schreiben-header .screen-title{margin:0;}
+.cronometro{
+  font-family:'IBM Plex Mono',monospace;
+  font-size:1.6rem;
+  font-weight:600;
+  color:var(--ink);
+  letter-spacing:0.04em;
+  min-width:80px;
+  text-align:right;
+}
+.cronometro.aviso{color:var(--seal);}
+.cronometro.esgotado{color:var(--rule-red);animation:pulsar .8s ease infinite alternate;}
+@keyframes pulsar{from{opacity:1;}to{opacity:0.4;}}

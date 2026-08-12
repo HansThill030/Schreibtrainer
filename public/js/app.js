@@ -41,12 +41,43 @@ function assertSupabaseConfig() {
 }
 
 
+/* ---------- Supabase Auth ---------- */
+let _supabase = null;
+let _session = null;
+
+async function initAuth(){
+  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
+  _supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data } = await _supabase.auth.getSession();
+  _session = data.session;
+  if (!_session) {
+    location.href = 'login.html';
+    return false;
+  }
+  // Atualiza sessão se expirar
+  _supabase.auth.onAuthStateChange((_event, session) => { _session = session; });
+  // Mostra email no header
+  const userEl = document.getElementById('userEmail');
+  if (userEl) userEl.textContent = _session.user.email;
+  return true;
+}
+
+async function signOut(){
+  await _supabase.auth.signOut();
+  location.href = 'login.html';
+}
+
+function getAuthHeader(){
+  return _session?.access_token
+    ? { 'Authorization': 'Bearer ' + _session.access_token }
+    : { 'Authorization': 'Bearer ' + SUPABASE_KEY };
+}
+
 function sbFetch(path, options = {}) {
   const headers = Object.assign({
     'apikey': SUPABASE_KEY,
-    'Authorization': 'Bearer ' + SUPABASE_KEY,
     'Content-Type': 'application/json'
-  }, options.headers || {});
+  }, getAuthHeader(), options.headers || {});
   return fetch(`${SUPABASE_URL}/rest/v1/${path}`, Object.assign({}, options, { headers }));
 }
 function rowToBankItem(r) {
@@ -349,6 +380,7 @@ if ($('btnToSchreiben')) $('btnToSchreiben').addEventListener('click', () => {
   $('miniAufgabe').textContent = `${meta.label} (${state.niveau}, Schwierigkeit ${state.schwierigkeit}/8): ${state.aufgabaObj.aufgabe.replace(/\n/g,' ')}`;
   state.maxPage = Math.max(state.maxPage, 2);
   goToPage('schreiben');
+  iniciarCronometro();
 });
 
 /* ---------- Page: schreiben ---------- */
@@ -362,6 +394,8 @@ if ($('btnBackToAufgabe')) $('btnBackToAufgabe').addEventListener('click', () =>
 if ($('btnSenden')) $('btnSenden').addEventListener('click', async () => {
   const text = $('textInput').value.trim();
   if (!text) return;
+  pararCronometro();
+  state._textoEnviado = text;
   state.maxPage = Math.max(state.maxPage, 3);
   goToPage('korrektur');
   $('loadingResult').style.display = 'block';
@@ -386,6 +420,7 @@ Maximal 6 Korrekturen, wichtigste zuerst.`;
     const raw = await callGemini(prompt, 4000);
     const json = extractJson(raw);
     renderFeedback(json);
+    await salvarHistorico(state._textoEnviado || '', json);
   } catch(e) {
     console.error(e);
     $('loadingResult').style.display = 'none';
@@ -413,13 +448,115 @@ function renderFeedback(json){
   stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
 }
 if ($('btnNeueTextsorte')) $('btnNeueTextsorte').addEventListener('click', () => { state.maxPage = 0; goToPage('config'); });
-if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textInput').value=''; updateWordCount(); goToPage('schreiben'); });
+if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textInput').value=''; updateWordCount(); goToPage('schreiben'); iniciarCronometro(); });
 
 /* ---------- Init ---------- */
 (async function init(){
+  const authed = await initAuth();
+  if (!authed) return;
   await loadBank();
   renderNiveauRow();
   renderTeileRow();
   if (!location.hash) location.hash = '#/config';
   onHashChange();
 })();
+
+/* ================================================================
+   CRONÔMETRO
+   ================================================================ */
+const TEMPO_PROVA = { A2: 45, B1: 75, B2: 90, C1: 90 }; // minutos
+
+let timerInterval = null;
+let timerSeconds = 0;
+
+function iniciarCronometro(){
+  clearInterval(timerInterval);
+  const minutos = TEMPO_PROVA[state.niveau] || 75;
+  timerSeconds = minutos * 60;
+  renderCronometro();
+  timerInterval = setInterval(() => {
+    timerSeconds--;
+    renderCronometro();
+    if (timerSeconds <= 0) {
+      clearInterval(timerInterval);
+      const el = $('cronometro');
+      if (el) { el.classList.add('esgotado'); el.textContent = '00:00 — Zeit!'; }
+    }
+  }, 1000);
+}
+
+function pararCronometro(){
+  clearInterval(timerInterval);
+}
+
+function renderCronometro(){
+  const el = $('cronometro');
+  if (!el) return;
+  const m = Math.floor(timerSeconds / 60);
+  const s = timerSeconds % 60;
+  el.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  el.classList.toggle('aviso', timerSeconds <= 300 && timerSeconds > 0);   // laranja nos últimos 5 min
+  el.classList.toggle('esgotado', timerSeconds <= 0);
+}
+
+/* ================================================================
+   HISTÓRICO (Supabase)
+   ================================================================ */
+async function salvarHistorico(texto, feedback){
+  try {
+    const meta = currentMeta();
+    await sbFetch('historico', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        user_id: _session?.user?.id,
+        niveau: state.niveau,
+        textsorte: meta.label,
+        schwierigkeit: state.schwierigkeit,
+        thema: state.aufgabaObj?.thema || state.aufgabaObj?.aufgabe?.split('\n')[0] || '—',
+        texto_aluno: texto,
+        nivel_atingido: feedback.niveau_einschaetzung || null,
+        status: feedback.status || null,
+        erfuellung: feedback.erfuellung || null,
+        aufbau: feedback.aufbau || null,
+        sprache: feedback.sprache || null,
+        tipp: feedback.tipp || null,
+        korrekturen: JSON.stringify(feedback.korrekturen || []),
+      })
+    });
+  } catch(e) {
+    console.warn('Histórico não salvo:', e);
+  }
+}
+
+async function carregarHistorico(){
+  const el = $('historicoLista');
+  if (!el) return;
+  el.innerHTML = '<div class="hist-loading">Laden&hellip;</div>';
+  try {
+    const res = await sbFetch('historico?select=*&order=created_at.desc&limit=50');
+    const rows = await res.json();
+    if (!Array.isArray(rows) || rows.length === 0) {
+      el.innerHTML = '<div class="hist-empty">Noch keine Einträge. Nach dem ersten Korrigieren erscheinen hier deine Ergebnisse.</div>';
+      return;
+    }
+    el.innerHTML = rows.map(r => {
+      const data = new Date(r.created_at).toLocaleDateString('de-DE');
+      const statusClass = r.status === 'erreicht' || r.status === 'übertroffen' ? 'gut' : r.status === 'knapp erreicht' ? 'ok' : 'schlecht';
+      return `<div class="hist-card">
+        <div class="hist-top">
+          <span class="hist-thema">${escapeHtml(r.thema)}</span>
+          <span class="hist-badge ${statusClass}">${escapeHtml(r.niveau_atingido || '—')} · ${escapeHtml(r.status || '—')}</span>
+        </div>
+        <div class="hist-meta">${escapeHtml(r.niveau)} · ${escapeHtml(r.textsorte)} · Schwierigkeit ${r.schwierigkeit}/8 · ${data}</div>
+        <div class="hist-tipp">→ ${escapeHtml(r.tipp || '')}</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="hist-empty">Fehler beim Laden des Verlaufs.</div>';
+  }
+}
+
+// Hook salvar histórico depois de renderFeedback
+const _renderFeedbackOriginal = renderFeedback;
+// Substituir a chamada em runKorrektur para capturar texto + feedback
