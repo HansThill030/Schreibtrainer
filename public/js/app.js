@@ -402,15 +402,17 @@ function extrairTema(filename, texto){
 }
 
 function renderMsPicker(){
-  // Usa o nível e tipo do seletor do modo Real (niveauRowReal / teileRowReal)
   const grid = $('msPickerGrid');
   const grupo = NIVEAU_GROUP[state.niveau];
+
+  // Mostra TODOS os Modellsätze do grupo (B1, C1, etc.)
+  // independentemente do tipo — o tipo é determinado pelo próprio Modellsatz
   const lista = state.bank
-    .filter(b => NIVEAU_GROUP[b.niveau] === grupo && b.textsorte === state.tipoKey)
+    .filter(b => NIVEAU_GROUP[b.niveau] === grupo)
     .sort((a,b) => (extrairNumeroModellsatz(a.filename)||99) - (extrairNumeroModellsatz(b.filename)||99));
 
   if (!lista.length) {
-    grid.innerHTML = `<div class="ms-empty">Keine Modellsätze im Banco für dieses Niveau/Typ.</div>`;
+    grid.innerHTML = `<div class="ms-empty">Keine Modellsätze im Banco für das Niveau "${state.niveau}". Bitte erst Modellsätze über das Supabase-Dashboard einfügen.</div>`;
     return;
   }
   grid.innerHTML = '';
@@ -422,9 +424,11 @@ function renderMsPicker(){
     card.innerHTML = `
       <span class="ms-num">Modellsatz ${num ?? '—'}</span>
       <div class="ms-thema">${escapeHtml(tema)}</div>
-      <div class="ms-type">${escapeHtml(item.niveau)} · ${escapeHtml(item.textsorte)}</div>`;
+      <div class="ms-type">${escapeHtml(item.filename)}</div>`;
     card.addEventListener('click', () => {
       msSeleccionado = item;
+      // Sincroniza o tipo com o que está no banco
+      state.tipoKey = item.textsorte;
       document.querySelectorAll('.ms-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
       $('btnToSchreibenReal').disabled = false;
@@ -445,28 +449,9 @@ function renderNiveauRowReal(){
     btn.addEventListener('click', () => {
       state.niveau = n;
       state.tipoKey = TEXTSORTEN[n][0].key;
+      msSeleccionado = null;
+      $('btnToSchreibenReal').disabled = true;
       renderNiveauRowReal();
-      renderTeileRowReal();
-      msSeleccionado = null;
-      $('btnToSchreibenReal').disabled = true;
-      renderMsPicker();
-    });
-    row.appendChild(btn);
-  });
-}
-function renderTeileRowReal(){
-  const row = $('teileRowReal');
-  if (!row) return;
-  row.innerHTML = '';
-  TEXTSORTEN[state.niveau].forEach(t => {
-    const btn = document.createElement('button');
-    btn.className = 'teil-btn' + (t.key === state.tipoKey ? ' active' : '');
-    btn.innerHTML = `<span class="n">${state.niveau} · ${t.kurz}</span>${t.label}`;
-    btn.addEventListener('click', () => {
-      state.tipoKey = t.key;
-      renderTeileRowReal();
-      msSeleccionado = null;
-      $('btnToSchreibenReal').disabled = true;
       renderMsPicker();
     });
     row.appendChild(btn);
@@ -764,7 +749,6 @@ if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textIn
   renderNiveauRow();
   renderTeileRow();
   renderNiveauRowReal();
-  renderTeileRowReal();
   if (!location.hash) location.hash = '#/config';
   onHashChange();
 })();
