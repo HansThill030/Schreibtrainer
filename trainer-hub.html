@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trainer — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <a class="brand" href="index.html">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span>
+        <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
+      </span>
+    </a>
+    <div class="header-actions">
+      <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
+      <a class="home-link" href="index.html">← Startseite</a>
+    </div>
+  </div>
+
+  <section class="hub-intro">
+    <h2>Willkommen im Trainer</h2>
+    <p>Wähle dein Niveau, lass dir eine neue Aufgabe generieren oder übe einen echten Modellsatz. Dein Verlauf wird automatisch gespeichert.</p>
+  </section>
+
+  <div class="action-grid">
+    <a class="action-card primary" href="trainer.html#/config">
+      <span class="t">Training starten →</span>
+      <span class="d">Neue Aufgabe generieren oder Modellsatz üben.</span>
+    </a>
+    <a class="action-card" href="login.html" id="linkAuth">
+      <span class="t">Anmelden / Registrieren</span>
+      <span class="d">Mit Google oder E-Mail. Verlauf auf allen Geräten.</span>
+    </a>
+    <a class="action-card" href="historico.html">
+      <span class="t">Mein Verlauf</span>
+      <span class="d">Alle Übungen, Korrekturen und dein Fortschritt.</span>
+    </a>
+  </div>
+
+  <div class="section-label">Verfügbare Niveaus</div>
+  <div class="level-grid">
+    <div class="level-card">
+      <div class="lv">IVA 2</div>
+      <span class="cefr">prä-DSD</span>
+      <p>Einstieg vor dem DSD: kurze E-Mails und einfache Texte mit klarer Struktur.</p>
+    </div>
+    <div class="level-card">
+      <div class="lv">DSD I</div>
+      <span class="cefr">B1</span>
+      <p>Beitrag oder Leserbrief mit Argumentation, Beispielen und eigener Meinung.</p>
+    </div>
+    <div class="level-card">
+      <div class="lv">DSD II</div>
+      <span class="cefr">B2 / C1</span>
+      <p>Erörterung mit Grafikauswertung, Gegenargumenten und differenzierter Sprache.</p>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <a class="brand" href="index.html">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span>
+        <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
+      </span>
+    </a>
+    <small>Übungswerkzeug — keine offizielle Prüfungsbewertung.</small>
+  </footer>
+</div>
+
+<script src="js/config.js"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
+const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
+if (SUPABASE_URL) {
+  const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    document.getElementById('userEmail').textContent = session.user.email;
+    const a = document.getElementById('linkAuth');
+    a.href = '#';
+    a.querySelector('.t').textContent = 'Abmelden';
+    a.querySelector('.d').textContent = session.user.email;
+    a.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await supabase.auth.signOut();
+      location.reload();
+    });
+  }
+}
+</script>
+</body>
+</html>

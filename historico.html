@@ -3,113 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Verlauf — Schreibtrainer</title>
+<title>Verlauf — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
 <link rel="stylesheet" href="css/styles.css">
-<style>
-.hist-loading, .hist-empty{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:0.82rem;
-  color:var(--ink-soft);
-  padding:20px 0;
-}
-.hist-card{
-  background:var(--paper-card);
-  border:1px solid var(--line);
-  border-radius:4px;
-  padding:16px 18px;
-  margin-bottom:12px;
-  transition:border-color .15s;
-}
-.hist-card:hover{border-color:var(--ink-soft);}
-.hist-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
-.hist-thema{font-family:'Fraunces',serif;font-weight:600;font-size:1.05rem;}
-.hist-badge{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:0.65rem;
-  letter-spacing:0.04em;
-  padding:4px 9px;
-  border-radius:20px;
-  white-space:nowrap;
-  flex-shrink:0;
-}
-.hist-badge.gut{background:#e8f0e9;color:var(--sage);}
-.hist-badge.ok{background:#fdf5e6;color:var(--seal);}
-.hist-badge.schlecht{background:#fdecea;color:var(--rule-red);}
-.hist-meta{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:0.68rem;
-  color:var(--ink-soft);
-  margin-bottom:6px;
-}
-.hist-tipp{
-  font-size:0.85rem;
-  color:var(--ink-soft);
-  border-left:2px solid var(--sage);
-  padding-left:10px;
-  line-height:1.4;
-}
-.filter-row{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  margin-bottom:20px;
-}
-.filter-btn{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:0.7rem;
-  letter-spacing:0.04em;
-  padding:6px 12px;
-  border-radius:20px;
-  border:1px solid var(--line);
-  background:var(--paper-card);
-  color:var(--ink-soft);
-  cursor:pointer;
-}
-.filter-btn.active{background:var(--ink);color:var(--paper-card);border-color:var(--ink);}
-.stats-row{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  gap:10px;
-  margin-bottom:24px;
-}
-.stat-card{
-  background:var(--paper-card);
-  border:1px solid var(--line);
-  border-radius:4px;
-  padding:14px 16px;
-  text-align:center;
-}
-.stat-val{
-  font-family:'Fraunces',serif;
-  font-size:2rem;
-  font-weight:700;
-  color:var(--rule-red);
-  display:block;
-}
-.stat-lbl{
-  font-family:'IBM Plex Mono',monospace;
-  font-size:0.65rem;
-  color:var(--ink-soft);
-  text-transform:uppercase;
-  letter-spacing:0.06em;
-}
-</style>
 </head>
 <body>
 <div class="wrap">
 
   <div class="masthead">
-    <div>
-      <h1>Verlauf</h1>
-      <div class="sub">Deine Schreibübungen &amp; Korrekturen</div>
-    </div>
-    <div style="display:flex;gap:14px;align-items:center;">
-      <span id="userEmail" style="font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--ink-soft);"></span>
+    <a class="brand" href="index.html">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span>
+        <span class="name">SPRACHIO</span>
+      </span>
+    </a>
+    <div class="header-actions">
+      <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
       <a class="home-link" href="trainer.html#/config">+ Neue Übung</a>
-      <a class="home-link" href="#" onclick="doSignOut();return false;">Abmelden</a>
-      <a class="home-link" href="index.html">← Startseite</a>
+      <a class="home-link" href="trainer-hub.html">← Hub</a>
     </div>
   </div>
+
+  <h2 class="screen-title" style="margin-bottom:6px;">Verlauf</h2>
+  <p style="color:var(--ink-soft);font-size:0.92rem;margin:0 0 24px;">Deine Schreibübungen &amp; Korrekturen</p>
 
   <div class="stats-row" id="statsRow">
     <div class="stat-card"><span class="stat-val" id="statTotal">—</span><span class="stat-lbl">Übungen gesamt</span></div>
@@ -145,7 +61,6 @@ if (!session) { location.href = 'login.html'; }
 const $ = id => document.getElementById(id);
 function escapeHtml(str){ const d=document.createElement('div');d.textContent=str||'';return d.innerHTML; }
 
-// Show user email
 const userEl = $('userEmail');
 if (userEl && session) userEl.textContent = session.user.email;
 

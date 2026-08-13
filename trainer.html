@@ -3,22 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Schreibtrainer</title>
+<title>Trainer — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 <div class="wrap">
 
   <div class="masthead">
-    <div>
-      <h1>Schreibtrainer</h1>
-      <div class="sub">Deutsch als Fremdsprache · Schreiben</div>
-    </div>
-    <div style="display:flex;gap:14px;align-items:center;">
-      <span id="userEmail" style="font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:var(--ink-soft);"></span>
-      <a class="home-link" href="historico.html">📋 Verlauf</a>
-      <a class="home-link" href="#" onclick="signOut();return false;">Abmelden</a>
-      <a class="home-link" href="index.html">← Startseite</a>
+    <a class="brand" href="index.html">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span>
+        <span class="name">SPRACHIO</span>
+      </span>
+    </a>
+    <div class="header-actions">
+      <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
+      <a class="home-link" href="trainer-hub.html">← Hub</a>
     </div>
   </div>
 
@@ -27,13 +28,11 @@
   <!-- PAGE 2: Konfiguration -->
   <section class="page" id="page-config">
 
-    <!-- Modus-Tabs no topo da config -->
     <div class="modus-tabs" style="margin-bottom:20px;">
-      <button class="modus-tab active" data-modus="neu">🎲 Neues Thema generieren</button>
-      <button class="modus-tab" data-modus="real">📄 Echter Modellsatz üben</button>
+      <button class="modus-tab active" data-modus="neu">Neues Thema generieren</button>
+      <button class="modus-tab" data-modus="real">Echter Modellsatz üben</button>
     </div>
 
-    <!-- Bloco: Neues Thema -->
     <div id="blocoNeu">
       <h2 class="screen-title" style="margin-bottom:14px;">Niveau, Textsorte &amp; Schwierigkeit</h2>
       <div class="niveau-row" id="niveauRow"></div>
@@ -53,10 +52,9 @@
       </div>
     </div>
 
-    <!-- Bloco: Echter Modellsatz -->
     <div id="blocoReal" style="display:none;">
       <h2 class="screen-title" style="margin-bottom:6px;">Modellsatz wählen</h2>
-      <p style="font-size:0.85rem;color:var(--ink-soft);margin:0 0 16px;">Wähle ein Niveau und dann einen echten DSD-Modellsatz als Übungsaufgabe.</p>
+      <p style="font-size:0.9rem;color:var(--ink-soft);margin:0 0 16px;">Wähle ein Niveau und dann einen echten DSD-Modellsatz als Übungsaufgabe.</p>
       <div class="niveau-row" id="niveauRowReal"></div>
       <div class="ms-picker-grid" id="msPickerGrid"></div>
       <div class="nav-row">
@@ -67,7 +65,7 @@
 
   </section>
 
-  <!-- PAGE 3: Aufgabe (somente para fluxo Neues Thema) -->
+  <!-- PAGE 3: Aufgabe -->
   <section class="page" id="page-aufgabe">
     <h2 class="screen-title">Aufgabe</h2>
     <div class="aufgabe-card">
@@ -77,8 +75,8 @@
       <div class="baloes" id="baloes" style="display:none;"></div>
       <div class="ref-note" id="refNote"></div>
       <div class="card-actions" id="cardActionsAufgabe">
-        <button class="primary" id="btnGerarIA">🎲 Neues Thema generieren</button>
-        <span class="loading-inline" id="loadingIA" style="display:none;font-family:'IBM Plex Mono',monospace;font-size:0.72rem;color:var(--ink-soft);">wird erstellt&hellip;</span>
+        <button class="primary" id="btnGerarIA">Neues Thema generieren</button>
+        <span class="loading-inline" id="loadingIA" style="display:none;">wird erstellt&hellip;</span>
       </div>
     </div>
     <div class="nav-row">
@@ -91,8 +89,8 @@
   <section class="page" id="page-schreiben">
     <div class="schreiben-header">
       <h2 class="screen-title">Dein Text</h2>
-      <div style="display:flex;gap:10px;align-items:center;">
-        <button class="ghost" id="btnVerAufgabe" style="font-size:0.7rem;padding:7px 12px;">📋 Aufgabe</button>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <button class="ghost" id="btnVerAufgabe" style="font-size:0.82rem;padding:9px 16px;">Aufgabe</button>
         <div id="cronometro" class="cronometro">--:--</div>
       </div>
     </div>

@@ -3,54 +3,65 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Schreibtrainer — DSD Schreibpraxis</title>
+<title>Sprachio — Deutsch lernen. Einfach besser.</title>
+<link rel="icon" href="assets/mark.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 <div class="wrap">
 
-  <div class="masthead">
-    <div>
-      <h1>Schreibtrainer</h1>
-      <div class="sub">Deutsch als Fremdsprache · Schreiben</div>
-    </div>
-  </div>
+  <section class="hero">
+    <img src="assets/mark.png" alt="Sprachio" class="logo-big fade-up">
+    <div class="tagline fade-up d1">Deutsch lernen. Einfach besser.</div>
+    <h2 class="fade-up d2">Treina para o DSD.<br><span class="accent-word">Com IA.</span></h2>
+    <p class="fade-up d3">Sprachio gera tarefas de escrita realistas para o Deutsches Sprachdiplom e corrige o teu texto em segundos, com avaliação de nível e melhorias concretas.</p>
+  </section>
 
-  <div class="hero">
-    <div class="eyebrow">Projekt · DSD-Schreibpraxis</div>
-    <h2>Trainiere Schreiben fürs Deutsche Sprachdiplom — mit echten Prüfungsformaten.</h2>
-    <p>Dieses Tool generiert neue, realistische Schreibaufgaben für das DSD (A2 bis C1), orientiert an echten Modellsätzen, und gibt dir danach eine ausführliche KI-Korrektur — mit Einschätzung deines Niveaus, konkreten Verbesserungen und einem Tipp für den nächsten Schritt.</p>
-    <p>Ziel ist, so oft wie möglich unter realistischen Bedingungen zu üben: richtiges Format, richtige Zeitvorgabe, echtes Feedback — nicht nur ein einzelner Modellsatz, sondern beliebig viele Variationen davon.</p>
-  </div>
-
-  <div class="feature-grid">
+  <div class="feature-grid" id="featureGrid">
     <div class="feature-card">
-      <span class="num">01</span>
+      <span class="num">01 · NIVEAU</span>
       <h3>Niveau &amp; Format wählen</h3>
-      <p>A2 (E-Mail), B1 (Beitrag/Leserbrief) oder B2/C1 (Erörterung mit Grafikauswertung) — plus ein Schwierigkeitsregler.</p>
+      <p>IVA 2, DSD I oder DSD II — plus Schwierigkeitsregler.</p>
     </div>
     <div class="feature-card">
-      <span class="num">02</span>
+      <span class="num">02 · AUFGABE</span>
       <h3>Neue Aufgabe generieren</h3>
-      <p>Die KI erstellt ein neues Thema im exakt gleichen Format wie die echten Modellsätze — nie das gleiche Thema zweimal.</p>
+      <p>Die KI erstellt ein neues Thema im exakt gleichen Format wie die echten Modellsätze.</p>
     </div>
     <div class="feature-card">
-      <span class="num">03</span>
+      <span class="num">03 · SCHREIBEN</span>
       <h3>Schreiben</h3>
-      <p>Ruhiger Schreibbereich, wie ein Prüfungsblatt, mit Wortzähler.</p>
+      <p>Ruhiger Schreibbereich mit Wortzähler und Zeitvorgabe wie in der Prüfung.</p>
     </div>
     <div class="feature-card">
-      <span class="num">04</span>
+      <span class="num">04 · KORREKTUR</span>
       <h3>Sofortige Korrektur</h3>
-      <p>Aufgabenerfüllung, Aufbau, Sprache, konkrete Korrekturen und eine Niveau-Einschätzung — in Sekunden.</p>
+      <p>Aufgabenerfüllung, Aufbau, Sprache und eine Niveau-Einschätzung — in Sekunden.</p>
     </div>
   </div>
 
   <div class="cta-row">
-    <a class="big-cta" href="trainer.html#/config">Training starten →</a>
+    <a class="big-cta" href="trainer-hub.html">Jetzt starten →</a>
   </div>
 
-  <div class="disclaimer">Übungswerkzeug — keine offizielle Prüfungsbewertung. Formate orientieren sich an echten Modellsätzen, ersetzen aber nicht das offizielle Prüfungsmaterial.</div>
+  <footer class="site-footer">
+    <a class="brand" href="index.html">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span>
+        <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
+      </span>
+    </a>
+    <small>Übungswerkzeug — keine offizielle Prüfungsbewertung.</small>
+  </footer>
 </div>
+
+<script>
+const io = new IntersectionObserver((entries) => {
+  entries.forEach((e) => {
+    if (e.isIntersecting) { e.target.style.opacity = 1; io.unobserve(e.target); }
+  });
+}, { threshold: 0.15 });
+document.querySelectorAll('.feature-card').forEach(c => { c.style.opacity = 0; c.style.transition = 'opacity .5s ease'; io.observe(c); });
+</script>
 </body>
 </html>
