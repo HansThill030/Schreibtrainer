@@ -1,4 +1,0 @@
-{
-  "outputDirectory": "public",
-  "buildCommand": "npm run build"
-}
