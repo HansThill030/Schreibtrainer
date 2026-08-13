@@ -1,4 +1,5 @@
-const NIVEAUS = ['A2','B1','B2','C1'];
+const NIVEAUS = ['A2','B1','C1'];
+const NIVEAU_LABELS = { A2:'IVA 2', B1:'DSD I', C1:'DSD II' };
 const PAGE_ORDER = ['config','aufgabe','schreiben','korrektur'];
 const PAGE_LABELS = { config:'Konfiguration', aufgabe:'Aufgabe', schreiben:'Text', korrektur:'Korrektur' };
 
@@ -12,21 +13,20 @@ const TEXTSORTEN = {
     { key:'beitrag', label:'Beitrag (Schülerzeitung)', kurz:'Forum-Diskussion + Meinung',
       forumClosing:'Schreibe einen Beitrag für die Schülerzeitung deiner Schule.' }
   ],
-  B2: [
-    { key:'erörterung_grafik', label:'Diskursive Erörterung mit Grafikauswertung', kurz:'DSD II (gleiche Aufgabe wie C1)',
-      promptDesc:'eine diskursive Erörterung mit Grafikauswertung im echten DSD-II-Format: ein kurzer Sachtext (150-200 Wörter, mit Quellenangabe, im "quelltext"-Feld) zu einem gesellschaftlichen Thema PLUS eine Beschreibung einer fiktiven Statistik/Grafik in Worten (konkrete Zahlen/Prozentwerte), ebenfalls im "quelltext"-Feld nach dem Sachtext angehängt. Im "aufgabe"-Feld: Aufforderung, den Text zusammenzufassen, die Grafik auszuwerten und eine ausführliche Erörterung mit eigener Meinung zu schreiben. Bearbeitungszeit nennen, keine Wortzahl-Vorgabe.' }
-  ],
   C1: [
-    { key:'erörterung_grafik', label:'Diskursive Erörterung mit Grafikauswertung', kurz:'DSD II (gleiche Aufgabe wie B2)',
+    { key:'erörterung_grafik', label:'Diskursive Erörterung mit Grafikauswertung', kurz:'DSD II (B2/C1, gleiche Aufgabe)',
       promptDesc:'eine diskursive Erörterung mit Grafikauswertung im echten DSD-II-Format: ein kurzer Sachtext (150-200 Wörter, mit Quellenangabe, im "quelltext"-Feld) zu einem gesellschaftlichen Thema PLUS eine Beschreibung einer fiktiven Statistik/Grafik in Worten (konkrete Zahlen/Prozentwerte), ebenfalls im "quelltext"-Feld nach dem Sachtext angehängt. Im "aufgabe"-Feld: Aufforderung, den Text zusammenzufassen, die Grafik auszuwerten und eine ausführliche Erörterung mit eigener Meinung zu schreiben. Bearbeitungszeit nennen, keine Wortzahl-Vorgabe.' }
   ]
 };
 
-const NIVEAU_GROUP = { A2:'DSD-I', B1:'DSD-I', B2:'DSD-II', C1:'DSD-II' };
+/* Cada nível agora é o seu próprio grupo — sem mistura entre IVA 2 / DSD I / DSD II */
+const NIVEAU_GROUP = { A2:'A2', B1:'B1', C1:'C1' };
 
 const state = { page:'config', maxPage:0, niveau:'B1', tipoKey:TEXTSORTEN['B1'][0].key, schwierigkeit:4, aufgabaObj:null, bank:[] };
 const $ = id => document.getElementById(id);
 function currentMeta(){ return TEXTSORTEN[state.niveau].find(t => t.key === state.tipoKey); }
+function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
+
 
 /* ---------- Supabase ---------- */
 const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
@@ -206,7 +206,7 @@ function renderNiveauRow(){
   NIVEAUS.forEach(n => {
     const btn = document.createElement('button');
     btn.className = 'niveau-btn' + (n === state.niveau ? ' active' : '');
-    btn.textContent = n;
+    btn.textContent = niveauLabel(n);
     btn.addEventListener('click', () => { state.niveau = n; state.tipoKey = TEXTSORTEN[n][0].key; renderNiveauRow(); renderTeileRow(); });
     row.appendChild(btn);
   });
@@ -217,7 +217,7 @@ function renderTeileRow(){
   TEXTSORTEN[state.niveau].forEach(t => {
     const btn = document.createElement('button');
     btn.className = 'teil-btn' + (t.key === state.tipoKey ? ' active' : '');
-    btn.innerHTML = `<span class="n">${state.niveau} · ${t.kurz}</span>${t.label}`;
+    btn.innerHTML = `<span class="n">${niveauLabel(state.niveau)} · ${t.kurz}</span>${t.label}`;
     btn.addEventListener('click', () => { state.tipoKey = t.key; renderTeileRow(); });
     row.appendChild(btn);
   });
@@ -275,17 +275,17 @@ async function gerarGenerico(meta){
   } else {
     $('refNote').textContent = 'Kein passender Modellsatz im Banco gespeichert — Aufgabe wird nach allgemeinem DSD-Format generiert.';
   }
-  const dsdHinweis = (state.niveau === 'B2' || state.niveau === 'C1')
+  const dsdHinweis = (state.niveau === 'C1')
     ? '\n\nWichtig: Bei DSD II ist die Aufgabe für B2 und C1 identisch — nur die erreichte Punktzahl in der Prüfung entscheidet, welches Niveau am Ende verliehen wird. Erstelle also eine reguläre DSD-II-Aufgabe; der Schwierigkeitsgrad-Regler darf das Thema/den Wortschatz trotzdem leicht anspruchsvoller oder zugänglicher gestalten.'
     : '';
   const prompt = `Du bist Experte für die Erstellung von Prüfungsaufgaben des Deutschen Sprachdiploms (DSD). Erstelle ${meta.promptDesc}
-Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${state.niveau}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).${dsdHinweis}${refBlock}
+Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${niveauLabel(state.niveau)}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).${dsdHinweis}${refBlock}
 Erfinde ein NEUES, noch nicht verwendetes Thema. Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
 {"aufgabe": "vollständiger Aufgabentext auf Deutsch inkl. Situation/Kontext, nummerierter/aufgezählter Punkte und Bearbeitungszeit", "quelltext": "Ausgangstext oder Grafikbeschreibung falls zutreffend, sonst leerer String"}`;
   const raw = await callGemini(prompt, 4000);
   const json = extractJson(raw);
   state.aufgabaObj = json;
-  $('aufgabeTag').textContent = `${state.niveau} · ${meta.label}`;
+  $('aufgabeTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label}`;
   $('aufgabeSchwierigkeit').textContent = `Schwierigkeit ${state.schwierigkeit}/8`;
   $('aufgabeText').textContent = json.aufgabe;
   if (json.quelltext) { $('quelltext').textContent = json.quelltext; $('quelltext').style.display = 'block'; }
@@ -311,7 +311,7 @@ Die 4 Punkte sollen wie im echten Modellsatz sein: konkrete Fragen zum Thema, di
   const json = extractJson(raw);
   const aufgabe = `${json.thema}\n\n${json.einleitung}\n\n${json.aufforderung}\n\nSchreibe ausführlich zu diesen vier Punkten:\n\n${json.punkte.map(p=>'• '+p).join('\n')}\n\nDu hast insgesamt 45 Minuten Zeit.`;
   state.aufgabaObj = { aufgabe, quelltext:'', thema: json.thema };
-  $('aufgabeTag').textContent = `${state.niveau} · ${meta.label}`;
+  $('aufgabeTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label}`;
   $('aufgabeSchwierigkeit').textContent = `Schwierigkeit ${state.schwierigkeit}/8`;
   $('aufgabeText').textContent = aufgabe;
   $('quelltext').style.display = 'none';
@@ -364,7 +364,7 @@ Erstelle jetzt eine neue Aufgabe nach diesen Regeln.`;
   const quelltext = json.personen.map(p => `${p.name}: ${p.aussage}`).join('\n\n');
   const aufgabe = `${json.thema}\n\nIn einem Internetforum gibt es eine Diskussion zum Thema „${json.thema}".\nDu findest hier dazu folgende Aussagen (siehe Sprechblasen oben).\n\n${meta.forumClosing}\n\nBearbeite in deinem Beitrag die folgenden drei Punkte:\n\n• Gib alle vier Aussagen aus dem Internetforum mit eigenen Worten wieder.\n• ${json.frage_persoenlich}\n• ${json.frage_meinung}\n\nDu hast insgesamt 75 Minuten Zeit.\nDu brauchst die Wörter nicht zu zählen.`;
   state.aufgabaObj = { aufgabe, quelltext, personen: json.personen, thema: json.thema };
-  $('aufgabeTag').textContent = `${state.niveau} · ${meta.label}`;
+  $('aufgabeTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label}`;
   $('aufgabeSchwierigkeit').textContent = `Schwierigkeit ${state.schwierigkeit}/8`;
   $('aufgabeText').textContent = aufgabe;
   $('quelltext').style.display = 'none';
@@ -412,7 +412,7 @@ function renderMsPicker(){
     .sort((a,b) => (extrairNumeroModellsatz(a.filename)||99) - (extrairNumeroModellsatz(b.filename)||99));
 
   if (!lista.length) {
-    grid.innerHTML = `<div class="ms-empty">Keine Modellsätze im Banco für das Niveau "${state.niveau}". Bitte erst Modellsätze über das Supabase-Dashboard einfügen.</div>`;
+    grid.innerHTML = `<div class="ms-empty">Keine Modellsätze im Banco für das Niveau "${niveauLabel(state.niveau)}". Bitte erst Modellsätze über das Supabase-Dashboard einfügen.</div>`;
     return;
   }
   grid.innerHTML = '';
@@ -445,7 +445,7 @@ function renderNiveauRowReal(){
   NIVEAUS.forEach(n => {
     const btn = document.createElement('button');
     btn.className = 'niveau-btn' + (n === state.niveau ? ' active' : '');
-    btn.textContent = n;
+    btn.textContent = niveauLabel(n);
     btn.addEventListener('click', () => {
       state.niveau = n;
       state.tipoKey = TEXTSORTEN[n][0].key;
@@ -499,7 +499,7 @@ function carregarModellsatzReal(item){
     const quelltext = personen.map(p => `${p.name}: ${p.aussage}`).join('\n\n');
     state.aufgabaObj = { aufgabe, quelltext, personen, thema: tema };
     // Popula aufgabe card (usado pelo modal "📋 Aufgabe")
-    $('aufgabeTag').textContent = `${state.niveau} · ${meta.label} · Modellsatz ${num}`;
+    $('aufgabeTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label} · Modellsatz ${num}`;
     $('aufgabeSchwierigkeit').textContent = 'Echter Modellsatz';
     $('aufgabeText').textContent = aufgabe;
     $('quelltext').style.display = 'none';
@@ -515,7 +515,7 @@ function carregarModellsatzReal(item){
     }
   } else {
     state.aufgabaObj = { aufgabe: item.text, quelltext: '', thema: tema };
-    $('aufgabeTag').textContent = `${state.niveau} · ${meta.label} · Modellsatz ${num}`;
+    $('aufgabeTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label} · Modellsatz ${num}`;
     $('aufgabeSchwierigkeit').textContent = 'Echter Modellsatz';
     $('aufgabeText').textContent = item.text;
     $('quelltext').style.display = 'none';
@@ -527,7 +527,7 @@ function carregarModellsatzReal(item){
 if ($('btnBackToConfig')) $('btnBackToConfig').addEventListener('click', () => goToPage('config'));
 if ($('btnToSchreiben')) $('btnToSchreiben').addEventListener('click', () => {
   const meta = currentMeta();
-  $('miniAufgabe').textContent = `${meta.label} (${state.niveau}, Schwierigkeit ${state.schwierigkeit}/8): ${state.aufgabaObj.aufgabe.replace(/\n/g,' ')}`;
+  $('miniAufgabe').textContent = `${meta.label} (${niveauLabel(state.niveau)}, Schwierigkeit ${state.schwierigkeit}/8): ${state.aufgabaObj.aufgabe.replace(/\n/g,' ')}`;
   state.maxPage = Math.max(state.maxPage, 2);
   goToPage('schreiben');
   iniciarCronometro();
@@ -555,6 +555,17 @@ if ($('btnSenden')) $('btnSenden').addEventListener('click', async () => {
 
 /* ---------- Page: korrektur ---------- */
 async function runKorrektur(text){
+  if (state.niveau === 'B1') {
+    await runKorrekturDSD1(text);
+  } else {
+    await runKorrekturGenerico(text);
+  }
+}
+
+/* ============================================================
+   DSD I (B1) — Superprompt oficial, 5 Schritte, 8 Kategorien
+   ============================================================ */
+async function runKorrekturDSD1(text){
   const meta = currentMeta();
   const quelltextInfo = state.aufgabaObj.quelltext
     ? `\nForum-Aussagen/Ausgangstext:\n${state.aufgabaObj.quelltext}` : '';
@@ -567,7 +578,7 @@ AUFGABE: Analysiere und bewerte die folgende Schülerarbeit zur Schriftlichen Ko
 
 PRÜFUNGSAUFGABE:
 Textsorte: ${meta.label}
-Niveau: ${state.niveau}${quelltextInfo}${personenInfo}
+Niveau: DSD I (B1)${quelltextInfo}${personenInfo}
 Aufgabentext: ${state.aufgabaObj.aufgabe}
 
 SCHÜLERTEXT:
@@ -619,8 +630,7 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.`;
   try {
     const raw = await callGemini(prompt, 6000);
     const json = extractJson(raw);
-    renderFeedback(json);
-    // Salva versão simplificada no histórico (retrocompatível)
+    renderFeedbackDSD1(json);
     const feedbackSimples = {
       niveau_einschaetzung: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
       status: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
@@ -641,7 +651,69 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.`;
   }
 }
 
-function renderFeedback(json){
+/* ============================================================
+   IVA 2 (A2) und DSD II (B2/C1) — Korrektur PROVISÓRIA.
+   TODO: substituir por prompts oficiais assim que o usuário os enviar
+   (mesmo modelo do superprompt DSD I, mas com os critérios corretos
+   para IVA 2 e DSD II).
+   ============================================================ */
+async function runKorrekturGenerico(text){
+  const meta = currentMeta();
+  const quelltextInfo = state.aufgabaObj.quelltext ? `\nAusgangstext/Grafikbeschreibung: ${state.aufgabaObj.quelltext}` : '';
+  const nivelDesc = state.niveau === 'A2' ? 'IVA 2 (Vorbereitung auf DSD I, Niveau A2)' : 'DSD II (Niveau B2/C1)';
+
+  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte folgenden Schülertext für die Textsorte "${meta.label}" auf Zielniveau ${nivelDesc} (Schwierigkeitsgrad der Aufgabe: ${state.schwierigkeit}/8). Sei präzise und schnell, keine langen Einleitungen.
+
+HINWEIS: Dies ist eine vorläufige, allgemeine Korrektur (kein offizielles Bewertungsraster für dieses Prüfungsformat).
+
+Aufgabe: ${state.aufgabaObj.aufgabe}${quelltextInfo}
+Schülertext:
+"""
+${text}
+"""
+Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks, auf Deutsch, kurz und konkret. Format:
+{"niveau_einschaetzung": "geschätztes tatsächliches Niveau des Textes", "status": "erreicht" | "knapp erreicht" | "noch nicht erreicht" | "übertroffen", "erfuellung": "1-2 Sätze zur Aufgabenerfüllung", "aufbau": "1-2 Sätze zu Struktur/Konnektoren", "sprache": "1-2 Sätze zu Wortschatz und Grammatik", "korrekturen": [{"original":"kurzer fehlerhafter Ausschnitt","korrektur":"korrigierte Version","erklaerung":"kurze Erklärung"}], "tipp": "ein konkreter nächster Schritt"}
+Maximal 6 Korrekturen, wichtigste zuerst.`;
+
+  try {
+    const raw = await callGemini(prompt, 3000);
+    const json = extractJson(raw);
+    renderFeedbackGenerico(json);
+    await salvarHistorico(state._textoEnviado || '', json);
+  } catch(e) {
+    console.error(e);
+    $('loadingResult').style.display = 'none';
+    $('feedback').style.display = 'block';
+    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+  }
+}
+
+function renderFeedbackGenerico(json){
+  $('stampNiveau').textContent = json.niveau_einschaetzung || '—';
+  $('stampTag').textContent = json.status || '';
+
+  $('fbErfuellung').innerHTML = `<p style="margin:0;font-size:0.94rem;line-height:1.6;color:var(--ink-soft);">${escapeHtml(json.erfuellung || '')}</p>
+    <p style="margin-top:10px;font-size:0.76rem;color:var(--warn);">⚠ Vorläufige Korrektur — offizielles Bewertungsraster für dieses Format folgt.</p>`;
+  $('fbAufbau').innerHTML = escapeHtml(json.aufbau || '');
+  $('fbSprache').innerHTML = `<p style="margin:0;font-size:0.94rem;line-height:1.6;color:var(--ink-soft);">${escapeHtml(json.sprache || '')}</p>`;
+
+  const list = $('korrekturenList');
+  list.innerHTML = '';
+  (json.korrekturen || []).forEach(k => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="orig">${escapeHtml(k.original)}</span> → <span class="korr">${escapeHtml(k.korrektur)}</span><span class="erkl">${escapeHtml(k.erklaerung)}</span>`;
+    list.appendChild(li);
+  });
+
+  $('fbTip').textContent = '→ ' + (json.tipp || '');
+
+  $('loadingResult').style.display = 'none';
+  $('feedback').style.display = 'block';
+  const stamp = $('stamp');
+  stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
+}
+
+function renderFeedbackDSD1(json){
   const s2 = json.schritt2_bewertung || {};
   const s3 = json.schritt3_belegsammlung || {};
   const s4 = json.schritt4_sprachanalyse || {};
@@ -756,7 +828,7 @@ if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textIn
 /* ================================================================
    CRONÔMETRO
    ================================================================ */
-const TEMPO_PROVA = { A2: 45, B1: 75, B2: 90, C1: 90 }; // minutos
+const TEMPO_PROVA = { A2: 45, B1: 75, C1: 90 }; // minutos
 
 let timerInterval = null;
 let timerSeconds = 0;
@@ -862,7 +934,7 @@ function abrirModalAufgabe(){
   const meta = currentMeta();
 
   document.getElementById('modalAufgabeTag').textContent =
-    `${state.niveau} · ${meta.label} · Schwierigkeit ${state.schwierigkeit}/8`;
+    `${niveauLabel(state.niveau)} · ${meta.label} · Schwierigkeit ${state.schwierigkeit}/8`;
 
   // Balões (só B1)
   const baloesModal = document.getElementById('baloesModal');
