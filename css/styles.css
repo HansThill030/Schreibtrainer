@@ -376,3 +376,31 @@ textarea::placeholder{color:var(--ink-faint);}
   .nav-row{flex-direction:column-reverse;}
   .nav-row button{width:100%;}
 }
+
+/* Aufgabe inline (tela de escrita) */
+.aufgabe-inline{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  margin-bottom:16px;
+  overflow:hidden;
+}
+.aufgabe-inline-head{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 16px;
+  font-size:0.76rem;font-weight:600;
+  color:var(--ink-faint);
+  text-transform:uppercase;letter-spacing:0.05em;
+  border-bottom:1px solid var(--line);
+}
+.aufgabe-inline-body{
+  padding:16px 18px 18px;
+}
+.aufgabe-inline-body.collapsed{display:none;}
+
+.ms-card .ms-preview{
+  font-size:0.78rem;
+  color:var(--ink-faint);
+  margin-top:6px;
+  line-height:1.4;
+}

@@ -419,12 +419,14 @@ function renderMsPicker(){
   lista.forEach(item => {
     const num = extrairNumeroModellsatz(item.filename);
     const tema = extrairTema(item.filename, item.text);
+    const tipoLabel = (TEXTSORTEN[item.niveau] || []).find(t => t.key === item.textsorte)?.label || item.textsorte;
+    const preview = item.text.replace(/\s+/g,' ').trim().slice(0, 130);
     const card = document.createElement('div');
     card.className = 'ms-card' + (msSeleccionado?.id === item.id ? ' selected' : '');
     card.innerHTML = `
-      <span class="ms-num">Modellsatz ${num ?? '—'}</span>
+      <span class="ms-num">Modellsatz ${num ?? '—'} · ${escapeHtml(tipoLabel)}</span>
       <div class="ms-thema">${escapeHtml(tema)}</div>
-      <div class="ms-type">${escapeHtml(item.filename)}</div>`;
+      <div class="ms-preview">${escapeHtml(preview)}&hellip;</div>`;
     card.addEventListener('click', () => {
       msSeleccionado = item;
       // Sincroniza o tipo com o que está no banco
@@ -463,9 +465,8 @@ if ($('btnToSchreibenReal')) {
   $('btnToSchreibenReal').addEventListener('click', () => {
     if (!msSeleccionado) return;
     carregarModellsatzReal(msSeleccionado);
-    // Prepara mini-aufgabe e vai direto pra schreiben
-    const meta = currentMeta();
-    $('miniAufgabe').textContent = `${meta.label} · Modellsatz ${extrairNumeroModellsatz(msSeleccionado.filename)} · ${extrairTema(msSeleccionado.filename, msSeleccionado.text)}`;
+    aufgabeVisivel = true;
+    renderAufgabeInline();
     state.maxPage = Math.max(state.maxPage, 2);
     goToPage('schreiben');
     iniciarCronometro();
@@ -526,8 +527,8 @@ function carregarModellsatzReal(item){
 }
 if ($('btnBackToConfig')) $('btnBackToConfig').addEventListener('click', () => goToPage('config'));
 if ($('btnToSchreiben')) $('btnToSchreiben').addEventListener('click', () => {
-  const meta = currentMeta();
-  $('miniAufgabe').textContent = `${meta.label} (${niveauLabel(state.niveau)}, Schwierigkeit ${state.schwierigkeit}/8): ${state.aufgabaObj.aufgabe.replace(/\n/g,' ')}`;
+  aufgabeVisivel = true;
+  renderAufgabeInline();
   state.maxPage = Math.max(state.maxPage, 2);
   goToPage('schreiben');
   iniciarCronometro();
@@ -811,7 +812,7 @@ function renderFeedbackDSD1(json){
   stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
 }
 if ($('btnNeueTextsorte')) $('btnNeueTextsorte').addEventListener('click', () => { state.maxPage = 0; goToPage('config'); });
-if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textInput').value=''; updateWordCount(); goToPage('schreiben'); iniciarCronometro(); });
+if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textInput').value=''; updateWordCount(); renderAufgabeInline(); goToPage('schreiben'); iniciarCronometro(); });
 
 /* ---------- Init ---------- */
 (async function init(){
@@ -922,46 +923,38 @@ async function carregarHistorico(){
 }
 
 // Hook salvar histórico depois de renderFeedback
-const _renderFeedbackOriginal = renderFeedback;
-// Substituir a chamada em runKorrektur para capturar texto + feedback
+/* (nota: renderFeedback foi renomeada para renderFeedbackDSD1 / renderFeedbackGenerico) */
 
 /* ================================================================
-   MODAL AUFGABENBLATT
+   AUFGABE INLINE (tela de escrita) — sempre visível, com toggle
    ================================================================ */
-function abrirModalAufgabe(){
-  if (!state.aufgabaObj) return;
-  const overlay = document.getElementById('aufgabenOverlay');
+let aufgabeVisivel = true;
+
+function renderAufgabeInline(){
+  const painel = $('aufgabeInline');
+  if (!state.aufgabaObj || !painel) return;
   const meta = currentMeta();
 
-  document.getElementById('modalAufgabeTag').textContent =
-    `${niveauLabel(state.niveau)} · ${meta.label} · Schwierigkeit ${state.schwierigkeit}/8`;
+  $('aufgabeInlineTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label}`;
 
-  // Balões (só B1)
-  const baloesModal = document.getElementById('baloesModal');
+  const bal = $('baloesInline');
   if (state.aufgabaObj.personen && state.aufgabaObj.personen.length) {
-    baloesModal.innerHTML = state.aufgabaObj.personen
+    bal.innerHTML = state.aufgabaObj.personen
       .map(p => `<div class="balloon"><span class="name">${escapeHtml(p.name)}</span>${escapeHtml(p.aussage)}</div>`)
       .join('');
-    baloesModal.style.display = 'grid';
+    bal.style.display = 'grid';
   } else {
-    baloesModal.style.display = 'none';
-    baloesModal.innerHTML = '';
+    bal.style.display = 'none';
+    bal.innerHTML = '';
   }
 
-  document.getElementById('modalAufgabeText').textContent = state.aufgabaObj.aufgabe || '';
-  overlay.classList.add('show');
+  $('aufgabeInlineText').textContent = state.aufgabaObj.aufgabe || '';
+  $('aufgabeInlineBody').classList.toggle('collapsed', !aufgabeVisivel);
+  $('btnToggleAufgabe').textContent = aufgabeVisivel ? 'Ausblenden' : 'Einblenden';
 }
 
-function fecharModalAufgabe(){
-  document.getElementById('aufgabenOverlay')?.classList.remove('show');
-}
-
-document.getElementById('btnVerAufgabe')?.addEventListener('click', abrirModalAufgabe);
-document.getElementById('btnFecharModal')?.addEventListener('click', fecharModalAufgabe);
-document.getElementById('aufgabenOverlay')?.addEventListener('click', (e) => {
-  if (e.target.id === 'aufgabenOverlay') fecharModalAufgabe();
-});
-// Fecha com Escape
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') fecharModalAufgabe();
+document.getElementById('btnToggleAufgabe')?.addEventListener('click', () => {
+  aufgabeVisivel = !aufgabeVisivel;
+  $('aufgabeInlineBody').classList.toggle('collapsed', !aufgabeVisivel);
+  $('btnToggleAufgabe').textContent = aufgabeVisivel ? 'Ausblenden' : 'Einblenden';
 });

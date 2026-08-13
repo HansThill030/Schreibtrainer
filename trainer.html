@@ -89,12 +89,21 @@
   <section class="page" id="page-schreiben">
     <div class="schreiben-header">
       <h2 class="screen-title">Dein Text</h2>
-      <div style="display:flex;gap:12px;align-items:center;">
-        <button class="ghost" id="btnVerAufgabe" style="font-size:0.82rem;padding:9px 16px;">Aufgabe</button>
-        <div id="cronometro" class="cronometro">--:--</div>
+      <div id="cronometro" class="cronometro">--:--</div>
+    </div>
+
+    <!-- Aufgabe fica sempre visível — pode ser recolhida pelo aluno -->
+    <div class="aufgabe-inline" id="aufgabeInline">
+      <div class="aufgabe-inline-head">
+        <span id="aufgabeInlineTag"></span>
+        <button class="ghost" id="btnToggleAufgabe" style="font-size:0.74rem;padding:6px 12px;">Ausblenden</button>
+      </div>
+      <div class="aufgabe-inline-body" id="aufgabeInlineBody">
+        <div class="baloes" id="baloesInline" style="display:none;"></div>
+        <div class="aufgabe-text" id="aufgabeInlineText"></div>
       </div>
     </div>
-    <div class="mini-aufgabe" id="miniAufgabe"></div>
+
     <div class="schreibfeld-wrap">
       <div class="schreibfeld-head">
         <span class="label">Text</span>
@@ -107,20 +116,6 @@
       <button class="primary" id="btnSenden">Senden &amp; korrigieren →</button>
     </div>
   </section>
-
-  <!-- Modal: Aufgabenblatt -->
-  <div class="aufgaben-overlay" id="aufgabenOverlay">
-    <div class="aufgaben-modal">
-      <div class="aufgaben-modal-head">
-        <span id="modalAufgabeTag"></span>
-        <button class="modal-close-btn" id="btnFecharModal">&times;</button>
-      </div>
-      <div class="aufgaben-modal-body">
-        <div class="baloes-modal" id="baloesModal" style="display:none;"></div>
-        <div class="aufgabe-text" id="modalAufgabeText" style="margin-top:14px;font-size:0.95rem;line-height:1.6;white-space:pre-wrap;"></div>
-      </div>
-    </div>
-  </div>
 
   <!-- PAGE 5: Korrektur -->
   <section class="page" id="page-korrektur">
