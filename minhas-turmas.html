@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meine Klassen — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.turma-item{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:14px 18px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:14px;
+}
+.turma-item .nome{font-weight:600;font-size:0.98rem;}
+.turma-item .codigo{font-size:0.76rem;color:var(--ink-faint);margin-top:2px;}
+.btn-sair{
+  font-family:inherit;font-size:0.78rem;font-weight:600;
+  padding:7px 14px;border-radius:var(--r-sm);border:1px solid var(--line);
+  background:transparent;color:var(--ink-soft);cursor:pointer;
+}
+.btn-sair:hover{border-color:var(--err);color:var(--err);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="masthead">
+    <a class="brand" href="/">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span><span class="name">SPRACHIO</span></span>
+    </a>
+    <div class="header-actions">
+      <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
+      <a class="home-link" href="/trainer-hub">← Hub</a>
+    </div>
+  </div>
+
+  <h2 class="screen-title" style="margin-bottom:6px;">Meine Klassen</h2>
+  <p style="color:var(--ink-soft);font-size:0.92rem;margin:0 0 24px;">Klassen, denen du über einen Code beigetreten bist.</p>
+
+  <div id="listaTurmas"><div class="hist-loading">Laden&hellip;</div></div>
+</div>
+
+<script src="js/config.js"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
+const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) { location.href = '/login'; }
+
+const $ = id => document.getElementById(id);
+function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+const userEl = $('userEmail');
+if (userEl && session) userEl.textContent = session.user.email;
+
+function sbFetch(path, options={}){
+  const headers=Object.assign({
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + session.access_token,
+    'Content-Type':'application/json'
+  }, options.headers||{});
+  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, Object.assign({}, options, { headers }));
+}
+
+async function carregar(){
+  const el = $('listaTurmas');
+  try {
+    const resM = await sbFetch(`turma_membros?user_id=eq.${session.user.id}&select=turma_id`);
+    const membros = await resM.json();
+    if (!Array.isArray(membros) || !membros.length) {
+      el.innerHTML = `<div class="ms-empty">Du bist noch keiner Klasse beigetreten. Frag deine Lehrkraft nach dem Beitrittscode.</div>`;
+      return;
+    }
+    const ids = membros.map(m => `"${m.turma_id}"`).join(',');
+    const resT = await sbFetch(`turmas?id=in.(${ids})&select=id,nome,codigo`);
+    const turmas = await resT.json();
+
+    el.innerHTML = (turmas || []).map(t => `
+      <div class="turma-item" data-id="${t.id}">
+        <div>
+          <div class="nome">${escapeHtml(t.nome)}</div>
+          <div class="codigo">Code: ${escapeHtml(t.codigo)}</div>
+        </div>
+        <button class="btn-sair" data-id="${t.id}">Verlassen</button>
+      </div>`).join('');
+
+    el.querySelectorAll('.btn-sair').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Diese Klasse wirklich verlassen?')) return;
+        await sbFetch(`turma_membros?turma_id=eq.${btn.dataset.id}&user_id=eq.${session.user.id}`, { method: 'DELETE' });
+        carregar();
+      });
+    });
+  } catch(e) {
+    el.innerHTML = `<div class="ms-empty">Fehler beim Laden.</div>`;
+  }
+}
+carregar();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

@@ -2,16 +2,20 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trainer — Sprachio</title>
 <link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 <div class="wrap">
 
   <div class="masthead">
-    <a class="brand" href="index.html">
+    <a class="brand" href="/">
       <img src="assets/mark.png" alt="Sprachio">
       <span>
         <span class="name">SPRACHIO</span>
@@ -19,7 +23,7 @@
     </a>
     <div class="header-actions">
       <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
-      <a class="home-link" href="trainer-hub.html">← Hub</a>
+      <a class="home-link" href="/trainer-hub">← Hub</a>
     </div>
   </div>
 
@@ -128,6 +132,8 @@
       <div class="fb-section"><h3>Schritt 4 · Sprachliche Analyse</h3><div id="fbSprache"></div></div>
       <div class="fb-section"><h3>Schritt 5 · Schülerfeedback</h3><ul class="korrekturen" id="korrekturenList"></ul></div>
       <div class="tip-box" id="fbTip"></div>
+      <button class="ghost" id="btnMusterloesung" style="margin-top:16px;">📄 Musterlösung anzeigen</button>
+      <div id="musterloesungResult"></div>
     </div>
     <div class="nav-row">
       <button class="ghost" id="btnNeueTextsorte">Neue Textsorte</button>
@@ -140,5 +146,10 @@
 
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+</script>
 </body>
 </html>

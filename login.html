@@ -2,22 +2,26 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Anmelden — Sprachio</title>
 <link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 <div class="wrap">
   <div class="masthead">
-    <a class="brand" href="index.html">
+    <a class="brand" href="/">
       <img src="assets/mark.png" alt="Sprachio">
       <span>
         <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
       </span>
     </a>
     <div class="header-actions">
-      <a class="home-link" href="trainer-hub.html">← Zurück</a>
+      <a class="home-link" href="/trainer-hub">← Zurück</a>
     </div>
   </div>
 </div>
@@ -28,7 +32,7 @@
       <img src="assets/mark.png" alt="Sprachio">
     </div>
     <div class="auth-title" id="authTitle">Willkommen bei Sprachio</div>
-    <div class="auth-sub">Dein Schreibverlauf wird automatisch gespeichert</div>
+    <div class="auth-sub" id="authSub">Dein Schreibverlauf wird automatisch gespeichert</div>
 
     <button class="auth-btn google" id="btnGoogle">
       <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/><path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 6.29C4.672 4.163 6.656 3.58 9 3.58z"/></svg>
@@ -49,6 +53,10 @@
     <button class="auth-btn" id="btnSubmit">Anmelden</button>
     <div class="auth-msg" id="authMsg"></div>
 
+    <div class="auth-toggle" id="forgotWrap">
+      <a id="forgotLink">Passwort vergessen?</a>
+    </div>
+
     <div class="auth-toggle">
       <span id="toggleText">Noch kein Konto?</span>
       <a id="toggleLink">Registrieren</a>
@@ -65,13 +73,14 @@ const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 supabase.auth.onAuthStateChange((event, session) => {
-  if (session) location.href = 'trainer.html#/config';
+  if (session) location.href = '/trainer#/config';
 });
 
 const { data: { session } } = await supabase.auth.getSession();
-if (session) location.href = 'trainer.html#/config';
+if (session) location.href = '/trainer#/config';
 
 let modoRegistrar = false;
+let modoEsqueci = false;
 const $ = id => document.getElementById(id);
 
 function showMsg(txt, tipo='erro'){
@@ -82,21 +91,55 @@ function showMsg(txt, tipo='erro'){
 function setLoading(v){
   $('btnSubmit').disabled = v;
   $('btnGoogle').disabled = v;
-  $('btnSubmit').textContent = v ? 'Bitte warten…' : (modoRegistrar ? 'Registrieren' : 'Anmelden');
+  $('btnSubmit').textContent = v ? 'Bitte warten…' : (modoEsqueci ? 'Link senden' : (modoRegistrar ? 'Registrieren' : 'Anmelden'));
 }
 
 $('toggleLink').addEventListener('click', () => {
   modoRegistrar = !modoRegistrar;
-  $('authTitle').textContent = modoRegistrar ? 'Konto erstellen' : 'Willkommen bei Sprachio';
-  $('btnSubmit').textContent = modoRegistrar ? 'Registrieren' : 'Anmelden';
+  modoEsqueci = false;
+  atualizarUI();
+});
+
+$('forgotLink').addEventListener('click', () => {
+  modoEsqueci = !modoEsqueci;
+  atualizarUI();
+});
+
+function atualizarUI(){
+  $('authTitle').textContent = modoEsqueci ? 'Passwort zurücksetzen' : (modoRegistrar ? 'Konto erstellen' : 'Willkommen bei Sprachio');
+  $('authSub').textContent = modoEsqueci ? 'Wir schicken dir einen Link zum Zurücksetzen.' : 'Dein Schreibverlauf wird automatisch gespeichert';
+  $('btnSubmit').textContent = modoEsqueci ? 'Link senden' : (modoRegistrar ? 'Registrieren' : 'Anmelden');
   $('toggleText').textContent = modoRegistrar ? 'Schon ein Konto?' : 'Noch kein Konto?';
   $('toggleLink').textContent = modoRegistrar ? 'Anmelden' : 'Registrieren';
   $('authMsg').className = 'auth-msg';
-});
+
+  document.querySelector('#inputPassword').closest('.form-group').style.display = modoEsqueci ? 'none' : 'block';
+  $('forgotWrap').style.display = modoRegistrar ? 'none' : 'flex';
+  document.querySelector('.divider').style.display = modoEsqueci ? 'none' : 'flex';
+  $('btnGoogle').style.display = modoEsqueci ? 'none' : 'flex';
+  $('forgotLink').textContent = modoEsqueci ? '← Zurück zum Login' : 'Passwort vergessen?';
+}
 
 $('btnSubmit').addEventListener('click', async () => {
   const email = $('inputEmail').value.trim();
   const password = $('inputPassword').value;
+
+  if (modoEsqueci) {
+    if (!email) { showMsg('Bitte E-Mail eingeben.'); return; }
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: location.origin + '/reset-password'
+      });
+      if (error) throw error;
+      showMsg('E-Mail zum Zurücksetzen gesendet! Bitte Postfach prüfen.', 'ok');
+    } catch(e) {
+      showMsg(e.message || 'Fehler beim Senden.');
+    }
+    setLoading(false);
+    return;
+  }
+
   if (!email || !password) { showMsg('Bitte E-Mail und Passwort eingeben.'); return; }
   setLoading(true);
   try {
@@ -110,7 +153,7 @@ $('btnSubmit').addEventListener('click', async () => {
     if (modoRegistrar && !result.data.session) {
       showMsg('Bestätigungs-E-Mail gesendet! Bitte Postfach prüfen.', 'ok');
     } else {
-      location.href = 'trainer.html#/config';
+      location.href = '/trainer#/config';
     }
   } catch(e) {
     showMsg(e.message || 'Fehler beim Anmelden.');
@@ -122,7 +165,7 @@ $('btnGoogle').addEventListener('click', async () => {
   setLoading(true);
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: location.origin + '/auth-callback.html' }
+    options: { redirectTo: location.origin + '/auth-callback' }
   });
   if (error) { showMsg(error.message); setLoading(false); }
 });
@@ -130,6 +173,11 @@ $('btnGoogle').addEventListener('click', async () => {
 ['inputEmail','inputPassword'].forEach(id => {
   $(id)?.addEventListener('keydown', e => { if (e.key === 'Enter') $('btnSubmit').click(); });
 });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>

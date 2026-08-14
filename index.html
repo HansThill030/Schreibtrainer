@@ -2,9 +2,13 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sprachio — Deutsch lernen. Einfach besser.</title>
 <link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -13,7 +17,7 @@
   <section class="hero">
     <img src="assets/mark.png" alt="Sprachio" class="logo-big fade-up">
     <div class="tagline fade-up d1">Deutsch lernen. Einfach besser.</div>
-    <h2 class="fade-up d2">Treine para o DSD.<br>
+    <h2 class="fade-up d2">Treina para o DSD.<br><span class="accent-word">Com IA.</span></h2>
     <p class="fade-up d3">Sprachio gera tarefas de escrita realistas para o Deutsches Sprachdiplom e corrige o teu texto em segundos, com avaliação de nível e melhorias concretas.</p>
   </section>
 
@@ -41,11 +45,11 @@
   </div>
 
   <div class="cta-row">
-    <a class="big-cta" href="trainer-hub.html">Jetzt starten →</a>
+    <a class="big-cta" href="/trainer-hub">Jetzt starten →</a>
   </div>
 
   <footer class="site-footer">
-    <a class="brand" href="index.html">
+    <a class="brand" href="/">
       <img src="assets/mark.png" alt="Sprachio">
       <span>
         <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
@@ -62,6 +66,11 @@ const io = new IntersectionObserver((entries) => {
   });
 }, { threshold: 0.15 });
 document.querySelectorAll('.feature-card').forEach(c => { c.style.opacity = 0; c.style.transition = 'opacity .5s ease'; io.observe(c); });
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>

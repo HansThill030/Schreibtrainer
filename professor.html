@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lehrer-Modus — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.turma-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-bottom:24px;}
+.turma-card{background:var(--card);padding:18px 20px;cursor:pointer;transition:background .15s ease;}
+.turma-card:hover{background:#faf9ff;}
+.turma-card .nome{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.05rem;margin-bottom:4px;}
+.turma-card .codigo{font-family:'Space Grotesk',sans-serif;font-size:0.78rem;color:var(--accent);letter-spacing:0.05em;}
+.turma-card .count{font-size:0.8rem;color:var(--ink-soft);margin-top:6px;}
+
+.form-inline{display:flex;gap:10px;margin-bottom:32px;flex-wrap:wrap;}
+.form-inline input{flex:1;min-width:200px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:0.94rem;outline:none;}
+.form-inline input:focus{border-color:var(--indigo);}
+
+.aluno-row{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:13px 16px;margin-bottom:8px;
+}
+.aluno-row .email{font-weight:600;font-size:0.9rem;}
+.aluno-row .stats{font-size:0.78rem;color:var(--ink-soft);}
+.aluno-row .badge{
+  font-family:'Space Grotesk',sans-serif;font-size:0.76rem;font-weight:700;
+  background:var(--bg);color:var(--accent);padding:3px 10px;border-radius:20px;
+}
+
+.codigo-box{
+  background:var(--bg);border:1px dashed var(--line);border-radius:var(--r-sm);
+  padding:10px 14px;font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;
+  letter-spacing:0.08em;color:var(--accent);text-align:center;margin-bottom:20px;cursor:pointer;
+}
+.codigo-box small{display:block;font-family:'Inter',sans-serif;font-size:0.68rem;font-weight:400;color:var(--ink-faint);letter-spacing:0;margin-top:2px;}
+
+.aufgaben-list-item{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:12px 16px;margin-bottom:8px;font-size:0.88rem;
+}
+.aufgaben-list-item .meta{font-size:0.72rem;color:var(--ink-faint);margin-bottom:4px;}
+.no-access{text-align:center;padding:80px 20px;color:var(--ink-soft);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <a class="brand" href="/">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span><span class="name">SPRACHIO</span></span>
+    </a>
+    <div class="header-actions">
+      <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
+      <a class="home-link" href="/trainer-hub">← Hub</a>
+    </div>
+  </div>
+
+  <div id="app">
+    <div class="hist-loading">Laden&hellip;</div>
+  </div>
+
+  <div class="disclaimer">Lehrer-Modus — sieh den Fortschritt deiner Klasse und teile Aufgaben.</div>
+</div>
+
+<script src="js/config.js"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
+const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) { location.href = '/login'; }
+
+const $ = id => document.getElementById(id);
+function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+const NIVEAU_LABELS = { A2:'IVA 2', B1:'DSD I', C1:'DSD II' };
+function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
+
+const userEl = $('userEmail');
+if (userEl && session) userEl.textContent = session.user.email;
+
+function sbFetch(path, options={}){
+  const headers=Object.assign({
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + session.access_token,
+    'Content-Type':'application/json'
+  }, options.headers||{});
+  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, Object.assign({}, options, { headers }));
+}
+
+function niveauParaNum(n){
+  const m={'A2':1,'A2+':1.5,'B1-':1.8,'B1':2,'B1+':2.5,'B2-':2.8,'B2':3,'B2+':3.5,'C1-':3.8,'C1':4,'C1+':4.5};
+  return m[n]||0;
+}
+
+function gerarCodigo(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = '';
+  for (let i=0;i<6;i++) c += chars[Math.floor(Math.random()*chars.length)];
+  return c;
+}
+
+let ehProfessor = false;
+let turmas = [];
+let turmaAtual = null;
+
+async function init(){
+  try {
+    const res = await sbFetch(`professores?user_id=eq.${session.user.id}&select=user_id`);
+    const data = await res.json();
+    ehProfessor = Array.isArray(data) && data.length > 0;
+  } catch(e) { ehProfessor = false; }
+
+  if (!ehProfessor) {
+    $('app').innerHTML = `<div class="no-access">
+      <div style="font-size:2.4rem;margin-bottom:14px;">🔒</div>
+      <p>Diese Seite ist für Lehrkräfte reserviert.<br>Falls du Lehrer/in bist und Zugang brauchst, bitte den Admin, dich freizuschalten.</p>
+    </div>`;
+    return;
+  }
+
+  await carregarTurmas();
+  renderHome();
+}
+
+async function carregarTurmas(){
+  const res = await sbFetch(`turmas?professor_id=eq.${session.user.id}&select=*&order=created_at.desc`);
+  turmas = await res.json();
+  if (!Array.isArray(turmas)) turmas = [];
+  // Conta membros por turma
+  for (const t of turmas) {
+    try {
+      const r = await sbFetch(`turma_membros?turma_id=eq.${t.id}&select=user_id`);
+      const membros = await r.json();
+      t._count = Array.isArray(membros) ? membros.length : 0;
+    } catch(e) { t._count = 0; }
+  }
+}
+
+function renderHome(){
+  turmaAtual = null;
+  $('app').innerHTML = `
+    <h2 class="screen-title" style="margin-bottom:6px;">Lehrer-Modus</h2>
+    <p style="color:var(--ink-soft);font-size:0.92rem;margin:0 0 24px;">Erstelle Klassen, teile den Beitrittscode und sieh den Fortschritt deiner Schüler.</p>
+
+    <div class="form-inline">
+      <input type="text" id="inputNomeTurma" placeholder="Name der Klasse (z.B. 9A Deutsch)">
+      <button class="primary" id="btnCriarTurma">+ Klasse erstellen</button>
+    </div>
+
+    <div class="section-label">Deine Klassen</div>
+    <div class="turma-grid" id="turmaGrid"></div>
+  `;
+
+  const grid = $('turmaGrid');
+  if (!turmas.length) {
+    grid.innerHTML = `<div class="ms-empty" style="padding:20px;">Noch keine Klasse erstellt.</div>`;
+  } else {
+    grid.innerHTML = turmas.map(t => `
+      <div class="turma-card" data-id="${t.id}">
+        <div class="nome">${escapeHtml(t.nome)}</div>
+        <div class="codigo">Code: ${escapeHtml(t.codigo)}</div>
+        <div class="count">${t._count} Schüler</div>
+      </div>`).join('');
+    grid.querySelectorAll('.turma-card').forEach(card => {
+      card.addEventListener('click', () => abrirTurma(card.dataset.id));
+    });
+  }
+
+  $('btnCriarTurma').addEventListener('click', criarTurma);
+  $('inputNomeTurma').addEventListener('keydown', (e) => { if (e.key === 'Enter') criarTurma(); });
+}
+
+async function criarTurma(){
+  const nome = $('inputNomeTurma').value.trim();
+  if (!nome) return;
+  const codigo = gerarCodigo();
+  try {
+    await sbFetch('turmas', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({ professor_id: session.user.id, nome, codigo })
+    });
+    await carregarTurmas();
+    renderHome();
+  } catch(e) {
+    alert('Fehler beim Erstellen der Klasse.');
+  }
+}
+
+async function abrirTurma(turmaId){
+  turmaAtual = turmas.find(t => t.id === turmaId);
+  if (!turmaAtual) return;
+
+  $('app').innerHTML = `<div class="hist-loading">Laden&hellip;</div>`;
+
+  // Membros
+  const resM = await sbFetch(`turma_membros?turma_id=eq.${turmaId}&select=user_id,joined_at`);
+  const membros = await resM.json();
+
+  // Histórico completo dos membros (RLS já garante que só vejo alunos das minhas turmas)
+  let historicoTodos = [];
+  if (membros.length) {
+    const ids = membros.map(m => `"${m.user_id}"`).join(',');
+    const resH = await sbFetch(`historico?user_id=in.(${ids})&select=*&order=created_at.desc`);
+    historicoTodos = await resH.json();
+    if (!Array.isArray(historicoTodos)) historicoTodos = [];
+  }
+
+  // Aufgaben da turma
+  const resA = await sbFetch(`aufgabas_turma?turma_id=eq.${turmaId}&select=*&order=created_at.desc`);
+  const aufgabenTurma = await resA.json();
+
+  const alunosStats = membros.map(m => {
+    const registros = historicoTodos.filter(h => h.user_id === m.user_id);
+    const melhor = registros.reduce((best, r) => niveauParaNum(r.nivel_atingido) > niveauParaNum(best) ? r.nivel_atingido : best, '');
+    const ultima = registros[0]?.created_at ? new Date(registros[0].created_at).toLocaleDateString('de-DE') : '—';
+    return { user_id: m.user_id, count: registros.length, melhor: melhor || '—', ultima };
+  });
+
+  $('app').innerHTML = `
+    <button class="ghost" id="btnVoltar" style="margin-bottom:18px;">← Alle Klassen</button>
+    <h2 class="screen-title" style="margin-bottom:14px;">${escapeHtml(turmaAtual.nome)}</h2>
+
+    <div class="codigo-box" id="codigoBox">${escapeHtml(turmaAtual.codigo)}<small>Beitrittscode — antippen zum Kopieren</small></div>
+
+    <div class="section-label">Schüler (${alunosStats.length})</div>
+    <div id="alunosList" style="margin-bottom:32px;"></div>
+
+    <div class="section-label">Aufgabe für die Klasse teilen</div>
+    <div class="niveau-row" id="niveauRowTurma"></div>
+    <textarea class="big" id="aufgabeTurmaInput" placeholder="z.B. 'Schreibe einen Beitrag zum Thema Freundschaft…'" style="width:100%;min-height:100px;border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;font-family:inherit;font-size:0.94rem;margin:10px 0;"></textarea>
+    <button class="primary" id="btnPostarAufgabe">Aufgabe teilen</button>
+
+    <div class="section-label" style="margin-top:28px;">Geteilte Aufgaben</div>
+    <div id="aufgabenList"></div>
+  `;
+
+  $('btnVoltar').addEventListener('click', renderHome);
+  $('codigoBox').addEventListener('click', () => {
+    navigator.clipboard?.writeText(turmaAtual.codigo);
+    $('codigoBox').style.opacity = '0.6';
+    setTimeout(() => $('codigoBox').style.opacity = '1', 200);
+  });
+
+  const alunosEl = $('alunosList');
+  if (!alunosStats.length) {
+    alunosEl.innerHTML = `<div class="ms-empty">Noch keine Schüler. Teile den Code oben, damit sie beitreten können.</div>`;
+  } else {
+    alunosEl.innerHTML = alunosStats.map(a => `
+      <div>
+        <div class="aluno-row">
+          <div>
+            <div class="email">Schüler ${a.user_id.slice(0,8)}</div>
+            <div class="stats">${a.count} Übungen · letzte: ${a.ultima}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span class="badge">${escapeHtml(a.melhor)}</span>
+            <button class="btn-sair" data-verlauf="${a.user_id}" style="font-family:inherit;font-size:0.74rem;padding:6px 11px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;">Verlauf</button>
+            <button class="btn-sair" data-remover="${a.user_id}" style="font-family:inherit;font-size:0.74rem;padding:6px 11px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink-soft);cursor:pointer;">Entfernen</button>
+          </div>
+        </div>
+        <div id="verlauf-${a.user_id}" style="display:none;margin:-4px 0 10px 4px;"></div>
+      </div>`).join('');
+
+    alunosEl.querySelectorAll('[data-verlauf]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const uid = btn.dataset.verlauf;
+        const wrap = $('verlauf-' + uid);
+        const abrindo = wrap.style.display === 'none';
+        wrap.style.display = abrindo ? 'block' : 'none';
+        if (abrindo && !wrap.dataset.loaded) {
+          const registros = historicoTodos.filter(h => h.user_id === uid);
+          wrap.dataset.loaded = '1';
+          wrap.innerHTML = registros.length
+            ? registros.map(r => `
+                <div class="hist-card" style="margin-bottom:8px;">
+                  <div class="hist-top">
+                    <span class="hist-thema">${escapeHtml(r.thema || '—')}</span>
+                    <span class="hist-badge">${escapeHtml(r.nivel_atingido||'—')} · ${escapeHtml(r.status||'—')}</span>
+                  </div>
+                  <div class="hist-meta">${niveauLabel(r.niveau)} · ${escapeHtml(r.textsorte||'')} · ${new Date(r.created_at).toLocaleDateString('de-DE')}</div>
+                  ${r.texto_aluno ? `<div class="quelltext" style="margin-top:8px;">${escapeHtml(r.texto_aluno)}</div>` : ''}
+                  ${r.tipp ? `<div class="hist-tipp">→ ${escapeHtml(r.tipp)}</div>` : ''}
+                </div>`).join('')
+            : `<div class="ms-empty">Keine Einträge.</div>`;
+        }
+      });
+    });
+
+    alunosEl.querySelectorAll('[data-remover]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Diesen Schüler wirklich aus der Klasse entfernen?')) return;
+        await sbFetch(`turma_membros?turma_id=eq.${turmaId}&user_id=eq.${btn.dataset.remover}`, { method:'DELETE' });
+        abrirTurma(turmaId);
+      });
+    });
+  }
+
+  const NIVEAUS = ['A2','B1','C1'];
+  let niveauSelecionado = 'B1';
+  const row = $('niveauRowTurma');
+  row.innerHTML = NIVEAUS.map(n => `<button class="niveau-btn${n==='B1'?' active':''}" data-n="${n}">${niveauLabel(n)}</button>`).join('');
+  row.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      niveauSelecionado = btn.dataset.n;
+      row.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  $('btnPostarAufgabe').addEventListener('click', async () => {
+    const texto = $('aufgabeTurmaInput').value.trim();
+    if (!texto) return;
+    try {
+      await sbFetch('aufgabas_turma', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ turma_id: turmaId, niveau: niveauSelecionado, aufgabenstellung: texto })
+      });
+      $('aufgabeTurmaInput').value = '';
+      abrirTurma(turmaId); // recarrega
+    } catch(e) { alert('Fehler beim Teilen der Aufgabe.'); }
+  });
+
+  const aufgabenEl = $('aufgabenList');
+  if (!Array.isArray(aufgabenTurma) || !aufgabenTurma.length) {
+    aufgabenEl.innerHTML = `<div class="ms-empty">Noch keine Aufgabe geteilt.</div>`;
+  } else {
+    aufgabenEl.innerHTML = aufgabenTurma.map(a => `
+      <div class="aufgaben-list-item" style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+        <div>
+          <div class="meta">${niveauLabel(a.niveau)} · ${new Date(a.created_at).toLocaleDateString('de-DE')}</div>
+          ${escapeHtml(a.aufgabenstellung)}
+        </div>
+        <button data-del-aufgabe="${a.id}" style="flex-shrink:0;font-family:inherit;font-size:0.72rem;padding:5px 10px;border-radius:6px;border:1px solid var(--line);background:transparent;color:var(--ink-faint);cursor:pointer;">Löschen</button>
+      </div>`).join('');
+
+    aufgabenEl.querySelectorAll('[data-del-aufgabe]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Diese Aufgabe wirklich löschen?')) return;
+        await sbFetch(`aufgabas_turma?id=eq.${btn.dataset.delAufgabe}`, { method:'DELETE' });
+        abrirTurma(turmaId);
+      });
+    });
+  }
+}
+
+init();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

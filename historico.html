@@ -2,16 +2,21 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verlauf — Sprachio</title>
 <link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
 <div class="wrap">
 
   <div class="masthead">
-    <a class="brand" href="index.html">
+    <a class="brand" href="/">
       <img src="assets/mark.png" alt="Sprachio">
       <span>
         <span class="name">SPRACHIO</span>
@@ -19,8 +24,8 @@
     </a>
     <div class="header-actions">
       <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
-      <a class="home-link" href="trainer.html#/config">+ Neue Übung</a>
-      <a class="home-link" href="trainer-hub.html">← Hub</a>
+      <a class="home-link" href="/trainer#/config">+ Neue Übung</a>
+      <a class="home-link" href="/trainer-hub">← Hub</a>
     </div>
   </div>
 
@@ -34,12 +39,24 @@
     <div class="stat-card"><span class="stat-val" id="statLetzte">—</span><span class="stat-lbl">Letzte Übung</span></div>
   </div>
 
+  <div id="chartWrap" style="display:none;margin-bottom:28px;">
+    <div class="section-label">Entwicklung über Zeit</div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;">
+      <canvas id="progressChart" height="90"></canvas>
+    </div>
+  </div>
+
+  <div id="errorAnalysisWrap" style="display:none;">
+    <div class="section-label" style="margin-top:8px;">Häufige Fehler</div>
+    <div id="errorAnalysis"></div>
+    <div id="fokusUebungWrap" style="margin-bottom:28px;"></div>
+  </div>
+
   <div class="filter-row" id="filterRow">
     <button class="filter-btn active" data-filter="all">Alle</button>
-    <button class="filter-btn" data-filter="A2">A2</button>
-    <button class="filter-btn" data-filter="B1">B1</button>
-    <button class="filter-btn" data-filter="B2">B2</button>
-    <button class="filter-btn" data-filter="C1">C1</button>
+    <button class="filter-btn" data-filter="A2">IVA 2</button>
+    <button class="filter-btn" data-filter="B1">DSD I</button>
+    <button class="filter-btn" data-filter="C1">DSD II</button>
   </div>
 
   <div id="historicoLista"></div>
@@ -56,10 +73,12 @@ const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const { data: { session } } = await supabase.auth.getSession();
-if (!session) { location.href = 'login.html'; }
+if (!session) { location.href = '/login'; }
 
 const $ = id => document.getElementById(id);
 function escapeHtml(str){ const d=document.createElement('div');d.textContent=str||'';return d.innerHTML; }
+const NIVEAU_LABELS_HIST = { A2:'IVA 2', B1:'DSD I', C1:'DSD II' };
+function niveauLabelHist(n){ return NIVEAU_LABELS_HIST[n] || n; }
 
 const userEl = $('userEmail');
 if (userEl && session) userEl.textContent = session.user.email;
@@ -73,7 +92,7 @@ function sbFetch(path, options={}){
   return fetch(`${SUPABASE_URL}/rest/v1/${path}`,Object.assign({},options,{headers}));
 }
 
-window.doSignOut = async () => { await supabase.auth.signOut(); location.href = 'login.html'; };
+window.doSignOut = async () => { await supabase.auth.signOut(); location.href = '/login'; };
 
 let todosDados = [];
 let filtroAtivo = 'all';
@@ -92,6 +111,8 @@ async function carregar(){
     if(!Array.isArray(todosDados)) todosDados=[];
     renderStats();
     renderLista();
+    analisarErros();
+    renderChart();
   } catch(e){
     el.innerHTML='<div class="hist-empty">Fehler beim Laden. Bitte Seite neu laden.</div>';
   }
@@ -122,7 +143,7 @@ function renderLista(){
     el.innerHTML='<div class="hist-empty">Noch keine Einträge für dieses Niveau.</div>';
     return;
   }
-  el.innerHTML=dados.map(r=>{
+  el.innerHTML=dados.map((r,idx)=>{
     const data=new Date(r.created_at).toLocaleDateString('de-DE');
     const hora=new Date(r.created_at).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
     const sc=r.status==='erreicht'||r.status==='übertroffen'?'gut':r.status==='knapp erreicht'?'ok':'schlecht';
@@ -131,10 +152,205 @@ function renderLista(){
         <span class="hist-thema">${escapeHtml(r.thema)}</span>
         <span class="hist-badge ${sc}">${escapeHtml(r.nivel_atingido||'—')} · ${escapeHtml(r.status||'—')}</span>
       </div>
-      <div class="hist-meta">${escapeHtml(r.niveau)} · ${escapeHtml(r.textsorte)} · Schwierigkeit ${r.schwierigkeit}/8 · ${data} ${hora}</div>
+      <div class="hist-meta">${escapeHtml(niveauLabelHist(r.niveau))} · ${escapeHtml(r.textsorte)} · Schwierigkeit ${r.schwierigkeit}/8 · ${data} ${hora}</div>
       <div class="hist-tipp">→ ${escapeHtml(r.tipp||'')}</div>
+      <div style="margin-top:10px;"><button class="pdf-export-btn" data-pdf-idx="${idx}">📄 Als PDF exportieren</button></div>
     </div>`;
   }).join('');
+
+  el.querySelectorAll('[data-pdf-idx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const i = parseInt(btn.dataset.pdfIdx,10);
+      exportarPDF(dados[i]);
+    });
+  });
+}
+
+/* ---------- Häufige Fehler ---------- */
+let padroesDetectados = [];
+
+function analisarErros(){
+  const mapa = new Map(); // chave normalizada -> {label, count, exemplos:[{original,korrektur}]}
+
+  todosDados.forEach(r => {
+    let korr = [];
+    try { korr = JSON.parse(r.korrekturen || '[]'); } catch(e) { korr = []; }
+    korr.forEach(k => {
+      const label = (k.erklaerung || '').trim();
+      if (!label) return;
+      const chave = label.toLowerCase();
+      if (!mapa.has(chave)) mapa.set(chave, { label, count:0, exemplos:[] });
+      const entry = mapa.get(chave);
+      entry.count++;
+      if (entry.exemplos.length < 2 && k.original && k.korrektur) {
+        entry.exemplos.push({ original:k.original, korrektur:k.korrektur });
+      }
+    });
+  });
+
+  padroesDetectados = [...mapa.values()].sort((a,b) => b.count - a.count).slice(0, 6);
+
+  const wrap = $('errorAnalysisWrap');
+  const el = $('errorAnalysis');
+  if (!padroesDetectados.length || padroesDetectados.every(p => p.count < 2)) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  el.innerHTML = padroesDetectados
+    .filter(p => p.count >= 2) // só mostra padrões que se repetem
+    .map(p => `
+      <div class="error-card">
+        <div class="err-head">
+          <span class="err-label">${escapeHtml(p.label)}</span>
+          <span class="err-count">${p.count}×</span>
+        </div>
+        <div class="err-examples">
+          ${p.exemplos.map(e => `<span class="orig">${escapeHtml(e.original)}</span> → <span class="korr">${escapeHtml(e.korrektur)}</span>`).join('<br>')}
+        </div>
+      </div>`).join('');
+
+  $('fokusUebungWrap').innerHTML = `<button class="fokus-btn" id="btnFokusUebung">🎯 Fokus-Übung zu diesen Fehlern generieren</button><div id="fokusResult"></div>`;
+  $('btnFokusUebung').addEventListener('click', gerarFokusUebung);
+}
+
+async function chamarGeminiHist(prompt, maxTokens){
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY },
+    body: JSON.stringify({ prompt, max_tokens: maxTokens || 1500 })
+  });
+  const data = await response.json();
+  if (data.error) throw new Error(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+  const textBlock = (data.content || []).find(c => c.type === 'text');
+  return textBlock ? textBlock.text : '';
+}
+
+async function gerarFokusUebung(){
+  const btn = $('btnFokusUebung');
+  btn.disabled = true;
+  btn.textContent = 'Wird erstellt…';
+  $('fokusResult').innerHTML = '';
+  const fehlerListe = padroesDetectados.filter(p => p.count >= 2)
+    .map(p => `- ${p.label} (${p.count}×): Beispiel "${p.exemplos[0]?.original}" → "${p.exemplos[0]?.korrektur}"`)
+    .join('\n');
+  const prompt = `Du bist DaF-Lehrkraft. Ein Schüler macht wiederholt folgende Fehlertypen in seinen deutschen Texten:
+${fehlerListe}
+
+Erstelle eine kurze, gezielte Übung (3-5 Aufgaben) speziell zu diesen wiederkehrenden Fehlern. Nutze Lückentexte oder "Finde und korrigiere den Fehler"-Sätze. Gib am Ende eine Lösung an. Antworte auf Deutsch, klar strukturiert, ohne Einleitung.`;
+  try {
+    const texto = await chamarGeminiHist(prompt, 1500);
+    $('fokusResult').innerHTML = `<div class="fokus-result">${escapeHtml(texto)}</div>`;
+  } catch(e) {
+    $('fokusResult').innerHTML = `<div class="fokus-result">Fehler beim Erstellen der Übung. Bitte nochmal versuchen.</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '🎯 Fokus-Übung zu diesen Fehlern generieren';
+}
+
+/* ---------- PDF Export ---------- */
+function exportarPDF(r){
+  let korr = [];
+  try { korr = JSON.parse(r.korrekturen || '[]'); } catch(e) { korr = []; }
+  const data = new Date(r.created_at).toLocaleDateString('de-DE');
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <html><head><meta charset="UTF-8"><title>${r.thema} — Sprachio</title>
+    <style>
+      body{font-family:Arial,sans-serif;color:#1e1b4b;max-width:700px;margin:40px auto;padding:0 20px;line-height:1.6;}
+      h1{font-size:1.4rem;margin-bottom:4px;}
+      .meta{color:#666;font-size:0.85rem;margin-bottom:24px;}
+      h2{font-size:1rem;margin-top:24px;border-bottom:1px solid #ddd;padding-bottom:6px;}
+      .texto{white-space:pre-wrap;background:#f8f8fc;padding:14px;border-radius:6px;font-size:0.95rem;}
+      .korr-item{margin-bottom:10px;font-size:0.9rem;}
+      .orig{color:#c0392b;text-decoration:line-through;}
+      .korr{color:#0f9d6d;font-weight:600;}
+      .badge{display:inline-block;background:#f0edff;color:#6d28d9;padding:3px 10px;border-radius:12px;font-size:0.8rem;font-weight:600;}
+    </style></head><body>
+      <h1>Sprachio — ${escapeHtml(r.thema)}</h1>
+      <div class="meta">${escapeHtml(niveauLabelHist(r.niveau))} · ${escapeHtml(r.textsorte)} · ${data} · <span class="badge">${escapeHtml(r.nivel_atingido||'—')}</span></div>
+
+      <h2>Dein Text</h2>
+      <div class="texto">${escapeHtml(r.texto_aluno || '')}</div>
+
+      <h2>Aufgabenerfüllung</h2>
+      <p>${escapeHtml(r.erfuellung || '')}</p>
+
+      <h2>Aufbau</h2>
+      <p>${escapeHtml(r.aufbau || '')}</p>
+
+      <h2>Sprache</h2>
+      <p>${escapeHtml(r.sprache || '')}</p>
+
+      <h2>Korrekturen</h2>
+      ${korr.map(k => `<div class="korr-item"><span class="orig">${escapeHtml(k.original)}</span> → <span class="korr">${escapeHtml(k.korrektur)}</span><br><em>${escapeHtml(k.erklaerung||'')}</em></div>`).join('') || '<p>—</p>'}
+
+      <h2>Nächster Schritt</h2>
+      <p>${escapeHtml(r.tipp || '')}</p>
+    <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+</script>
+</body></html>
+  `);
+  win.document.close();
+  setTimeout(() => win.print(), 400);
+}
+
+/* ---------- Gráfico de evolução ---------- */
+let chartInstance = null;
+function renderChart(){
+  const dados = [...todosDados].filter(r => r.nivel_atingido).reverse(); // ordem cronológica
+  const wrap = $('chartWrap');
+  if (dados.length < 2) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  const labels = dados.map(r => new Date(r.created_at).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit' }));
+  const valores = dados.map(r => niveauParaNum(r.nivel_atingido));
+  const cores = { A2:'#6366f1', B1:'#a855f7', C1:'#0f9d6d' };
+  const pointColors = dados.map(r => cores[r.niveau] || '#6366f1');
+
+  const ctx = $('progressChart').getContext('2d');
+  if (chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        data: valores,
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99,102,241,0.08)',
+        pointBackgroundColor: pointColors,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        tension: 0.25,
+        fill: true,
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (ctx) => dados[ctx.dataIndex].nivel_atingido + ' — ' + niveauLabelHist(dados[ctx.dataIndex].niveau)
+          }
+        }
+      },
+      scales: {
+        y: {
+          min: 0, max: 5,
+          ticks: {
+            stepSize: 1,
+            callback: (v) => ({0:'',1:'A2',2:'B1',3:'B2',4:'C1',5:'C1+'})[v] || ''
+          },
+          grid: { color: '#e6e3f4' }
+        },
+        x: { grid: { display:false } }
+      }
+    }
+  });
 }
 
 document.querySelectorAll('.filter-btn').forEach(btn=>{

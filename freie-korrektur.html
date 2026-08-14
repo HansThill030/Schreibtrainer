@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freie Korrektur — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.mode-tabs{display:flex;gap:6px;margin-bottom:16px;}
+.mode-tab{
+  flex:1;font-family:inherit;font-size:0.86rem;font-weight:600;
+  padding:11px 14px;border-radius:var(--r-sm);cursor:pointer;
+  border:1px solid var(--line);background:var(--card);color:var(--ink-soft);
+  transition:all .15s ease;
+}
+.mode-tab.active{background:var(--ink);border-color:var(--ink);color:#fff;}
+.upload-zone{
+  border:1.5px dashed var(--line);border-radius:var(--r);
+  padding:32px 20px;text-align:center;cursor:pointer;
+  transition:border-color .15s ease;background:var(--card);
+}
+.upload-zone:hover{border-color:var(--ink-soft);}
+.upload-zone p{margin:8px 0 0;font-size:0.85rem;color:var(--ink-soft);}
+.upload-preview{max-width:100%;max-height:360px;border-radius:var(--r-sm);display:block;margin:0 auto;}
+.upload-preview-wrap{position:relative;}
+.galeria-fotos{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));
+  gap:10px;margin-top:14px;
+}
+.galeria-item{position:relative;border-radius:var(--r-sm);overflow:hidden;border:1px solid var(--line);}
+.galeria-item img{width:100%;height:120px;object-fit:cover;display:block;}
+.galeria-item .num{
+  position:absolute;top:5px;left:5px;background:rgba(30,27,75,0.75);color:#fff;
+  font-size:0.68rem;font-weight:600;padding:2px 7px;border-radius:10px;
+}
+.galeria-item .btn-remove-item{
+  position:absolute;top:5px;right:5px;background:rgba(220,53,53,0.85);color:#fff;
+  border:none;border-radius:6px;width:22px;height:22px;font-size:0.8rem;cursor:pointer;line-height:1;
+}
+.btn-remove-foto{
+  position:absolute;top:8px;right:8px;
+  background:rgba(30,27,75,0.75);color:#fff;border:none;border-radius:6px;
+  padding:6px 12px;font-size:0.76rem;cursor:pointer;
+}
+textarea.big{
+  width:100%;min-height:120px;border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:12px 14px;font-family:inherit;font-size:0.95rem;line-height:1.6;color:var(--ink);
+  resize:vertical;outline:none;background:#fff;
+}
+textarea.big:focus{border-color:var(--indigo);}
+textarea.big.small{min-height:220px;}
+.field-label{font-size:0.78rem;font-weight:600;color:var(--ink-soft);margin-bottom:8px;display:block;}
+.turma-aufgabe-item{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color .15s ease;
+}
+.turma-aufgabe-item:hover{border-color:var(--indigo);}
+.turma-aufgabe-item .meta{font-size:0.7rem;color:var(--ink-faint);margin-bottom:4px;}
+.turma-aufgabe-item .txt{font-size:0.86rem;color:var(--ink-soft);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <a class="brand" href="/">
+      <img src="assets/mark.png" alt="Sprachio">
+      <span><span class="name">SPRACHIO</span></span>
+    </a>
+    <div class="header-actions">
+      <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
+      <a class="home-link" href="/trainer-hub">← Hub</a>
+    </div>
+  </div>
+
+  <h2 class="screen-title" style="margin-bottom:6px;">Freie Korrektur</h2>
+  <p style="color:var(--ink-soft);font-size:0.92rem;margin:0 0 26px;max-width:520px;">Korrigiere Texte aus dem Unterricht — fotografiere ein handschriftliches Blatt oder tippe den Text ein. Nicht an die generierten Sprachio-Aufgaben gebunden.</p>
+
+  <div id="formArea">
+    <span class="field-label">Niveau</span>
+    <div class="niveau-row" id="niveauRow"></div>
+
+    <div id="turmaAufgabenWrap" style="display:none;margin-bottom:16px;">
+      <span class="field-label">Aufgabe aus deiner Klasse</span>
+      <div id="turmaAufgabenList"></div>
+    </div>
+
+    <span class="field-label">Was war die Aufgabe? (von der Lehrkraft, Thema, Anweisung…)</span>
+    <textarea class="big" id="aufgabenstellung" placeholder="z.B. 'Schreibe einen Beitrag zum Thema Freundschaft. Beantworte: Was ist für dich Freundschaft? Nenne ein Beispiel.'" style="margin-bottom:20px;"></textarea>
+
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="foto">📷 Foto</button>
+      <button class="mode-tab" data-mode="text">⌨️ Text eintippen</button>
+    </div>
+
+    <div id="modoFoto">
+      <div class="upload-zone" id="uploadZone">
+        <div style="font-size:2rem;">📷</div>
+        <p>Foto(s) auswählen oder aufnehmen — mehrere Seiten möglich</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" capture="environment" multiple style="display:none;">
+      <div id="galeriaFotos" class="galeria-fotos"></div>
+    </div>
+
+    <div id="modoText" style="display:none;">
+      <textarea class="big small" id="textoDigitado" placeholder="Schülertext hier eintippen…"></textarea>
+    </div>
+
+    <div class="nav-row">
+      <span></span>
+      <button class="primary" id="btnKorrigieren" disabled>Korrigieren →</button>
+    </div>
+  </div>
+
+  <div class="loading-big" id="loadingResult" style="display:none;"><div class="spin"></div>Text wird analysiert&hellip;</div>
+
+  <div class="feedback" id="feedback" style="display:none;margin-top:24px;">
+    <div class="stamp" id="stamp"><div class="niveau" id="stampNiveau">B1</div><div class="tag" id="stampTag">erreicht</div></div>
+    <div class="fb-section"><h3>Bewertung</h3><div id="fbErfuellung"></div></div>
+    <div class="fb-section"><h3>Niveaueinschätzung</h3><p id="fbAufbau"></p></div>
+    <div class="fb-section"><h3>Sprachliche Analyse</h3><div id="fbSprache"></div></div>
+    <div class="fb-section"><h3>Feedback</h3><ul class="korrekturen" id="korrekturenList"></ul></div>
+    <div class="tip-box" id="fbTip"></div>
+    <button class="ghost" id="btnMusterloesung" style="margin-top:16px;">📄 Musterlösung anzeigen</button>
+    <div id="musterloesungResult"></div>
+  </div>
+
+  <div class="nav-row" id="navNovaCorrekturWrap" style="display:none;">
+    <button class="ghost" id="btnNovaKorrektur">← Neue Korrektur</button>
+    <span></span>
+  </div>
+
+  <div class="disclaimer">Übungswerkzeug — keine offizielle Prüfungsbewertung.</div>
+</div>
+
+<script src="js/config.js"></script>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
+const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const { data: { session } } = await supabase.auth.getSession();
+if (!session) { location.href = '/login'; }
+
+const $ = id => document.getElementById(id);
+function escapeHtml(str){ const d=document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
+
+const userEl = $('userEmail');
+if (userEl && session) userEl.textContent = session.user.email;
+
+function sbFetch(path, options={}){
+  const headers=Object.assign({
+    'apikey': SUPABASE_KEY,
+    'Authorization': 'Bearer ' + session.access_token,
+    'Content-Type':'application/json'
+  }, options.headers||{});
+  return fetch(`${SUPABASE_URL}/rest/v1/${path}`, Object.assign({}, options, { headers }));
+}
+
+const NIVEAUS = ['A2','B1','C1'];
+const NIVEAU_LABELS = { A2:'IVA 2', B1:'DSD I', C1:'DSD II' };
+function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
+
+const state = { niveau:'B1', modo:'foto', imagens:[] }; // imagens: [{mimeType, data(base64), previewUrl}]
+let ultimaAufgabenstellung = '';
+
+/* ---------- Niveau ---------- */
+function renderNiveauRow(){
+  const row = $('niveauRow');
+  row.innerHTML = '';
+  NIVEAUS.forEach(n => {
+    const btn = document.createElement('button');
+    btn.className = 'niveau-btn' + (n === state.niveau ? ' active' : '');
+    btn.textContent = niveauLabel(n);
+    btn.addEventListener('click', () => { state.niveau = n; renderNiveauRow(); atualizarBotao(); });
+    row.appendChild(btn);
+  });
+}
+renderNiveauRow();
+carregarAufgabenTurma();
+
+/* ---------- Aufgaben da turma (se o aluno for membro) ---------- */
+async function carregarAufgabenTurma(){
+  try {
+    const resM = await sbFetch(`turma_membros?user_id=eq.${session.user.id}&select=turma_id`);
+    const membros = await resM.json();
+    if (!Array.isArray(membros) || !membros.length) return;
+    const turmaIds = membros.map(m => `"${m.turma_id}"`).join(',');
+    const resA = await sbFetch(`aufgabas_turma?turma_id=in.(${turmaIds})&select=*&order=created_at.desc&limit=10`);
+    const aufgabas = await resA.json();
+    if (!Array.isArray(aufgabas) || !aufgabas.length) return;
+
+    $('turmaAufgabenWrap').style.display = 'block';
+    $('turmaAufgabenList').innerHTML = aufgabas.map((a,i) => `
+      <div class="turma-aufgabe-item" data-i="${i}">
+        <div class="meta">${niveauLabel(a.niveau)} · ${new Date(a.created_at).toLocaleDateString('de-DE')}</div>
+        <div class="txt">${escapeHtml(a.aufgabenstellung.slice(0,120))}${a.aufgabenstellung.length>120?'…':''}</div>
+      </div>`).join('');
+    $('turmaAufgabenList').querySelectorAll('.turma-aufgabe-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const a = aufgabas[parseInt(el.dataset.i,10)];
+        $('aufgabenstellung').value = a.aufgabenstellung;
+        state.niveau = a.niveau;
+        renderNiveauRow();
+        atualizarBotao();
+        document.querySelectorAll('.turma-aufgabe-item').forEach(e => e.style.borderColor = '');
+        el.style.borderColor = 'var(--indigo)';
+      });
+    });
+  } catch(e) { /* aluno não é membro de nenhuma turma, ou erro de rede — ignora silenciosamente */ }
+}
+
+/* ---------- Mode tabs ---------- */
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    state.modo = tab.dataset.mode;
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    $('modoFoto').style.display = state.modo === 'foto' ? 'block' : 'none';
+    $('modoText').style.display = state.modo === 'text' ? 'block' : 'none';
+    atualizarBotao();
+  });
+});
+
+/* ---------- Foto upload ---------- */
+$('uploadZone').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  for (const file of files) {
+    const { dataUrl, mimeType, base64 } = await comprimirImagem(file);
+    state.imagens.push({ mimeType, data: base64, previewUrl: dataUrl });
+  }
+  e.target.value = '';
+  renderGaleria();
+  atualizarBotao();
+});
+
+function renderGaleria(){
+  const el = $('galeriaFotos');
+  el.innerHTML = state.imagens.map((img, i) => `
+    <div class="galeria-item">
+      <span class="num">${i+1}</span>
+      <img src="${img.previewUrl}">
+      <button class="btn-remove-item" data-i="${i}">×</button>
+    </div>`).join('');
+  el.querySelectorAll('.btn-remove-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      state.imagens.splice(parseInt(btn.dataset.i, 10), 1);
+      renderGaleria();
+      atualizarBotao();
+    });
+  });
+}
+
+/* Redimensiona a foto (máx 1600px de largura) e converte pra JPEG base64 — mantém payload leve */
+function comprimirImagem(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 1600;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const base64 = dataUrl.split(',')[1];
+        resolve({ dataUrl, mimeType: 'image/jpeg', base64 });
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---------- Habilita botão ---------- */
+function atualizarBotao(){
+  const temAufgabe = $('aufgabenstellung').value.trim().length > 0;
+  const temConteudo = state.modo === 'foto' ? state.imagens.length > 0 : $('textoDigitado').value.trim().length > 0;
+  $('btnKorrigieren').disabled = !(temAufgabe && temConteudo);
+}
+$('aufgabenstellung').addEventListener('input', atualizarBotao);
+$('textoDigitado').addEventListener('input', atualizarBotao);
+
+/* ---------- Gemini call ---------- */
+async function callGemini(prompt, maxTokens, images){
+  const body = { prompt, max_tokens: maxTokens || 2000 };
+  if (images && images.length) body.images = images.map(img => ({ mimeType: img.mimeType, data: img.data }));
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
+    method: 'POST',
+    headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY },
+    body: JSON.stringify(body)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.error) {
+    const detail = data?.error || `HTTP ${response.status}`;
+    throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
+  }
+  return data.text || '';
+}
+function extractJson(text){
+  const cleaned = text.replace(/```json/g,'').replace(/```/g,'').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  return JSON.parse(cleaned.slice(start, end+1));
+}
+
+/* ---------- Correção ---------- */
+$('btnKorrigieren').addEventListener('click', async () => {
+  const aufgabenstellung = $('aufgabenstellung').value.trim();
+  ultimaAufgabenstellung = aufgabenstellung;
+  const textoTyped = $('textoDigitado').value.trim();
+  const temFoto = state.modo === 'foto' && state.imagens.length > 0;
+
+  $('formArea').style.display = 'none';
+  $('loadingResult').style.display = 'block';
+  $('feedback').style.display = 'none';
+
+  try {
+    if (state.niveau === 'B1') {
+      await runKorrekturDSD1(aufgabenstellung, temFoto ? null : textoTyped, temFoto ? state.imagens : null);
+    } else {
+      await runKorrekturGenerico(aufgabenstellung, temFoto ? null : textoTyped, temFoto ? state.imagens : null);
+    }
+  } catch(e) {
+    console.error(e);
+    $('loadingResult').style.display = 'none';
+    $('feedback').style.display = 'block';
+    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+  }
+  $('navNovaCorrekturWrap').style.display = 'flex';
+});
+
+$('btnNovaKorrektur').addEventListener('click', () => {
+  $('musterloesungResult').innerHTML = '';
+  $('btnMusterloesung').textContent = '📄 Musterlösung anzeigen';
+  $('feedback').style.display = 'none';
+  $('navNovaCorrekturWrap').style.display = 'none';
+  $('formArea').style.display = 'block';
+  $('aufgabenstellung').value = '';
+  $('textoDigitado').value = '';
+  state.imagens = [];
+  $('fileInput').value = '';
+  renderGaleria();
+  atualizarBotao();
+});
+
+const TRANSKRIPTIONSREGELN = `TRANSKRIPTIONSREGELN (nur relevant, wenn ein Foto eines handschriftlichen Textes vorliegt):
+- Keine sprachliche, grammatische oder orthografische Korrektur beim Transkribieren — nur wortgetreu abschreiben
+- Unsichere Stellen: [unleserlich] oder [vermutlich: ...]
+- Durchgestrichene Wörter: [durchgestrichen: ...]
+- Überschriebene Wörter: [übergeschrieben: ...]
+- Die Überschrift zählt als Zeile 1, gesamter Text mit Zeilennummerierung versehen`;
+
+async function runKorrekturDSD1(aufgabenstellung, textoDigitado, imagens){
+  const quelleInfo = imagens && imagens.length
+    ? `Der Schülertext liegt als ${imagens.length > 1 ? imagens.length + ' Fotos eines handschriftlichen, mehrseitigen Textes' : 'Foto eines handschriftlichen Blatts'} vor. Führe zuerst Schritt 1 (Diplomatische Transkription) direkt anhand des/der Fotos durch${imagens.length > 1 ? ' (Seiten in der gegebenen Reihenfolge zusammenhängend transkribieren)' : ''}.`
+    : `SCHÜLERTEXT (bereits digital erfasst):\n"""\n${textoDigitado}\n"""`;
+
+  const prompt = `Du bist eine erfahrene DaF-Lehrkraft sowie DSD-I-Prüferin mit umfassender Erfahrung in der Korrektur und Kalibrierung von Schülertexten. Du arbeitest streng nach den offiziellen Bewertungskriterien der Schriftlichen Kommunikation (DSD I, Anlage 12), bewertest jedoch stets wohlwollend und niveaugerecht auf A2/B1-Niveau.
+
+AUFGABE: Analysiere und bewerte die folgende Schülerarbeit zur Schriftlichen Kommunikation im DSD I in fünf Schritten.
+
+KONTEXT: Dies ist eine freie Aufgabe (z.B. aus dem Unterricht), keine automatisch generierte Aufgabe.
+Vorgegebene Aufgabenstellung/Thema: ${aufgabenstellung}
+
+${quelleInfo}
+
+${TRANSKRIPTIONSREGELN}
+
+WICHTIGE BEWERTUNGSGRUNDSÄTZE:
+- DSD-I-Niveau (A2/B1) als Maßstab
+- Wohlwollende Bewertung
+- Verständlichkeit hat Vorrang vor Fehlerfreiheit
+- Strukturen (Kategorie 6) und Grammatik (Kategorie 7) STRIKT GETRENNT bewerten — Strukturen = Vielfalt und Angemessenheit, Grammatik = Korrektheit
+- Jede Punktevergabe mit konkreten Textbelegen begründen
+- Bei Grenzfällen transparent erläutern
+
+Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Alle Felder auf Deutsch. Format:
+{
+  "schritt1_transkription": [{"zeile": 1, "text": "Zeile 1 des Textes..."}, {"zeile": 2, "text": "..."}],
+  "schritt2_bewertung": {
+    "gesamteindruck":     {"punkte": 0, "begruendung": "...", "belege_positiv": ["Z.X: '...'"], "belege_schwach": ["Z.X: '...'"]},
+    "wiedergabe":         {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "eigene_erfahrungen": {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "eigene_meinung":     {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "wortschatz":         {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
+    "strukturen":         {"punkte": 0, "begruendung": "WICHTIG: nur Vielfalt/Angemessenheit, NICHT grammatische Korrektheit", "belege_positiv": [], "belege_schwach": []},
+    "grammatik":          {"punkte": 0, "begruendung": "WICHTIG: nur Korrektheit (Satzstellung, Kasus, Verbformen, Kongruenz, Artikel), NICHT Vielfalt", "belege_positiv": [], "belege_schwach": []},
+    "orthografie":        {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []}
+  },
+  "schritt3_belegsammlung": {
+    "gesamtpunkte": 0,
+    "max_punkte": 24,
+    "niveaueinschaetzung": "A2 | A2+ | B1 knapp erreicht | B1 erreicht | B1 sicher erreicht",
+    "niveaubegruendung": "..."
+  },
+  "schritt4_sprachanalyse": {
+    "gelungene_strukturen": [{"typ": "weil-Satz", "beleg": "Z.X: '...'"}],
+    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Nebensatzstellung", "zeile": 0}],
+    "orthografiefehler": [{"original": "...", "zielschreibung": "...", "zeile": 0}],
+    "wortschatz": {"positiv": ["..."], "auffaelligkeiten": ["..."]}
+  },
+  "schritt5_feedback": {
+    "gut_gelungen": ["...", "...", "..."],
+    "verbessern": ["...", "...", "..."],
+    "naechstes_lernziel": "..."
+  },
+  "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]
+}
+Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
+"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen — entweder falsch verwendete Wörter (korrigiert) oder thematisch passende neue Wörter, die der Schüler noch lernen sollte.`;
+
+  const raw = await callGemini(prompt, 6500, imagens);
+  const json = extractJson(raw);
+  renderFeedbackDSD1(json);
+
+  const textoTranscrito = (json.schritt1_transkription || []).map(l => l.text).join(' ') || textoDigitado || '';
+  const feedbackSimples = {
+    niveau_einschaetzung: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+    status: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+    erfuellung: json.schritt2_bewertung?.gesamteindruck?.begruendung || '',
+    aufbau: json.schritt2_bewertung?.strukturen?.begruendung || '',
+    sprache: json.schritt2_bewertung?.grammatik?.begruendung || '',
+    tipp: json.schritt5_feedback?.naechstes_lernziel || '',
+    korrekturen: (json.schritt4_sprachanalyse?.grammatikfehler || []).map(f => ({
+      original: f.original, korrektur: f.zielstruktur, erklaerung: f.kategorie
+    })),
+    vokabelkarten: json.vokabelkarten || []
+  };
+  await salvarHistorico(aufgabenstellung, textoTranscrito, feedbackSimples);
+}
+
+async function runKorrekturGenerico(aufgabenstellung, textoDigitado, imagens){
+  const nivelDesc = state.niveau === 'A2' ? 'IVA 2 (Vorbereitung auf DSD I, Niveau A2)' : 'DSD II (Niveau B2/C1)';
+  const quelleInfo = imagens && imagens.length
+    ? `Der Schülertext liegt als ${imagens.length > 1 ? imagens.length + ' Fotos eines handschriftlichen, mehrseitigen Textes' : 'Foto eines handschriftlichen Blatts'} vor. Transkribiere zuerst wortgetreu (siehe Transkriptionsregeln), bevor du bewertest.`
+    : `SCHÜLERTEXT (bereits digital erfasst):\n"""\n${textoDigitado}\n"""`;
+
+  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte den folgenden Schülertext auf Zielniveau ${nivelDesc}. Sei präzise und schnell, keine langen Einleitungen.
+
+HINWEIS: Dies ist eine vorläufige, allgemeine Korrektur (kein offizielles Bewertungsraster für dieses Prüfungsformat). Dies ist außerdem eine freie Aufgabe aus dem Unterricht, keine automatisch generierte Aufgabe.
+
+Vorgegebene Aufgabenstellung/Thema: ${aufgabenstellung}
+
+${quelleInfo}
+
+${TRANSKRIPTIONSREGELN}
+
+Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks, auf Deutsch, kurz und konkret. Format:
+{"transkription": "vollständiger Text, wortgetreu (bei Foto: transkribiert; bei getipptem Text: unverändert übernommen)", "niveau_einschaetzung": "geschätztes tatsächliches Niveau des Textes", "status": "erreicht" | "knapp erreicht" | "noch nicht erreicht" | "übertroffen", "erfuellung": "1-2 Sätze zur Aufgabenerfüllung", "aufbau": "1-2 Sätze zu Struktur/Konnektoren", "sprache": "1-2 Sätze zu Wortschatz und Grammatik", "korrekturen": [{"original":"kurzer fehlerhafter Ausschnitt","korrektur":"korrigierte Version","erklaerung":"kurze Erklärung"}], "tipp": "ein konkreter nächster Schritt", "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]}
+"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen.
+Maximal 6 Korrekturen, wichtigste zuerst.`;
+
+  const raw = await callGemini(prompt, 4800, imagens);
+  const json = extractJson(raw);
+  renderFeedbackGenerico(json);
+  await salvarHistorico(aufgabenstellung, json.transkription || textoDigitado || '', json);
+}
+
+/* ---------- Render (idêntico ao trainer.html) ---------- */
+function renderFeedbackGenerico(json){
+  $('stampNiveau').textContent = json.niveau_einschaetzung || '—';
+  $('stampTag').textContent = json.status || '';
+  $('fbErfuellung').innerHTML = `<p style="margin:0;font-size:0.94rem;line-height:1.6;color:var(--ink-soft);">${escapeHtml(json.erfuellung || '')}</p>
+    <p style="margin-top:10px;font-size:0.76rem;color:var(--warn);">⚠ Vorläufige Korrektur — offizielles Bewertungsraster für dieses Format folgt.</p>`;
+  $('fbAufbau').innerHTML = escapeHtml(json.aufbau || '');
+  $('fbSprache').innerHTML = `<p style="margin:0;font-size:0.94rem;line-height:1.6;color:var(--ink-soft);">${escapeHtml(json.sprache || '')}</p>`;
+  const list = $('korrekturenList');
+  list.innerHTML = '';
+  (json.korrekturen || []).forEach(k => {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="orig">${escapeHtml(k.original)}</span> → <span class="korr">${escapeHtml(k.korrektur)}</span><span class="erkl">${escapeHtml(k.erklaerung)}</span>`;
+    list.appendChild(li);
+  });
+  $('fbTip').textContent = '→ ' + (json.tipp || '');
+  $('loadingResult').style.display = 'none';
+  $('feedback').style.display = 'block';
+  const stamp = $('stamp');
+  stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
+}
+
+function renderFeedbackDSD1(json){
+  const s2 = json.schritt2_bewertung || {};
+  const s3 = json.schritt3_belegsammlung || {};
+  const s4 = json.schritt4_sprachanalyse || {};
+  const s5 = json.schritt5_feedback || {};
+
+  $('stampNiveau').textContent = s3.niveaueinschaetzung || '—';
+  $('stampTag').textContent = `${s3.gesamtpunkte ?? '?'} / ${s3.max_punkte ?? 24} Punkte`;
+
+  const kategorien = [
+    { key:'gesamteindruck',     label:'Gesamteindruck' },
+    { key:'wiedergabe',         label:'Wiedergabe' },
+    { key:'eigene_erfahrungen', label:'Eigene Erfahrungen' },
+    { key:'eigene_meinung',     label:'Eigene Meinung' },
+    { key:'wortschatz',         label:'Wortschatz' },
+    { key:'strukturen',         label:'Strukturen' },
+    { key:'grammatik',          label:'Grammatik' },
+    { key:'orthografie',        label:'Orthografie' },
+  ];
+  let bewertungHTML = `<table class="fb-table"><thead><tr><th>Kategorie</th><th>Pkt</th><th>Begründung</th></tr></thead><tbody>`;
+  let gesamtPunkte = 0;
+  kategorien.forEach(k => {
+    const kat = s2[k.key] || {};
+    const p = kat.punkte ?? '?';
+    if (typeof p === 'number') gesamtPunkte += p;
+    const pos = (kat.belege_positiv || []).map(b => `<span class="beleg-pos">✓ ${escapeHtml(b)}</span>`).join('');
+    const neg = (kat.belege_schwach || []).map(b => `<span class="beleg-neg">✗ ${escapeHtml(b)}</span>`).join('');
+    bewertungHTML += `<tr><td class="kat-name">${k.label}</td><td class="kat-punkte">${p}/3</td><td>${escapeHtml(kat.begruendung||'')}${pos?'<br>'+pos:''}${neg?'<br>'+neg:''}</td></tr>`;
+  });
+  bewertungHTML += `<tr class="gesamt-row"><td colspan="2"><strong>Gesamt</strong></td><td><strong>${s3.gesamtpunkte ?? gesamtPunkte} / 24</strong></td></tr></tbody></table>`;
+  $('fbErfuellung').innerHTML = bewertungHTML;
+
+  $('fbAufbau').innerHTML = `<strong>${escapeHtml(s3.niveaueinschaetzung||'—')}</strong> — ${escapeHtml(s3.niveaubegruendung||'')}`;
+
+  let analyseHTML = '';
+  if ((s4.gelungene_strukturen||[]).length) {
+    analyseHTML += '<strong>✓ Gelungene Strukturen</strong><ul class="analyse-list">';
+    (s4.gelungene_strukturen||[]).forEach(g => { analyseHTML += `<li><em>${escapeHtml(g.typ)}</em> — ${escapeHtml(g.beleg)}</li>`; });
+    analyseHTML += '</ul>';
+  }
+  if ((s4.grammatikfehler||[]).length) {
+    analyseHTML += '<strong>✗ Grammatikfehler</strong><ul class="analyse-list">';
+    (s4.grammatikfehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)} (Z.${f.zeile})</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  if ((s4.orthografiefehler||[]).length) {
+    analyseHTML += '<strong>✗ Orthografiefehler</strong><ul class="analyse-list">';
+    (s4.orthografiefehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span><span class="erkl">Z.${f.zeile}</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  $('fbSprache').innerHTML = analyseHTML || '—';
+
+  const list = $('korrekturenList');
+  list.innerHTML = '';
+  (s5.gut_gelungen || []).forEach(g => { const li = document.createElement('li'); li.innerHTML = `<span class="korr">✓</span> ${escapeHtml(g)}`; list.appendChild(li); });
+  (s5.verbessern || []).forEach(v => { const li = document.createElement('li'); li.innerHTML = `<span class="orig">→</span> ${escapeHtml(v)}`; list.appendChild(li); });
+
+  $('fbTip').textContent = '🎯 Nächstes Lernziel: ' + (s5.naechstes_lernziel || '');
+  $('loadingResult').style.display = 'none';
+  $('feedback').style.display = 'block';
+  const stamp = $('stamp');
+  stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
+}
+
+/* ---------- Musterlösung (texto-modelo pra comparar) ---------- */
+$('btnMusterloesung').addEventListener('click', async () => {
+  const btn = $('btnMusterloesung');
+  btn.disabled = true;
+  btn.textContent = 'Wird erstellt…';
+  $('musterloesungResult').innerHTML = '';
+  const prompt = `Du bist DaF-Lehrkraft. Schreibe eine vorbildliche Musterlösung (Beispieltext) für folgende Aufgabe auf Niveau ${niveauLabel(state.niveau)}:
+
+${ultimaAufgabenstellung}
+
+Der Text soll ein realistisches, gut geschriebenes Beispiel für dieses Niveau sein — nicht perfekt-akademisch, sondern wie ein starker Schüler auf diesem Niveau schreiben würde. Antworte NUR mit dem Text selbst, keine Einleitung, keine Erklärung, keine Anführungszeichen.`;
+  try {
+    const texto = await callGemini(prompt, 1500);
+    $('musterloesungResult').innerHTML = `<div class="fokus-result" style="margin-top:12px;">${escapeHtml(texto)}</div>`;
+  } catch(e) {
+    $('musterloesungResult').innerHTML = `<div class="fokus-result" style="margin-top:12px;">Fehler beim Erstellen. Bitte nochmal versuchen.</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '📄 Musterlösung anzeigen';
+});
+
+async function salvarHistorico(aufgabenstellung, texto, feedback){
+  try {
+    await sbFetch('historico', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        user_id: session?.user?.id,
+        niveau: state.niveau,
+        textsorte: 'Freie Korrektur (Foto/Text)',
+        schwierigkeit: 0,
+        thema: aufgabenstellung.slice(0, 60),
+        texto_aluno: texto,
+        nivel_atingido: feedback.niveau_einschaetzung || null,
+        status: feedback.status || null,
+        erfuellung: feedback.erfuellung || null,
+        aufbau: feedback.aufbau || null,
+        sprache: feedback.sprache || null,
+        tipp: feedback.tipp || null,
+        korrekturen: JSON.stringify(feedback.korrekturen || []),
+      })
+    });
+    await salvarVocabulario(feedback.vokabelkarten, state.niveau);
+  } catch(e) { console.warn('Histórico não salvo:', e); }
+}
+
+async function salvarVocabulario(cartas, niveau){
+  if (!cartas || !cartas.length) return;
+  try {
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    const rows = cartas.slice(0, 6).map(c => ({
+      user_id: session?.user?.id,
+      wort: c.wort,
+      bedeutung: c.bedeutung,
+      beispiel: c.beispiel || null,
+      niveau,
+      proxima_revisao: amanha.toISOString().slice(0,10)
+    }));
+    await sbFetch('vocabulario', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(rows) });
+  } catch(e) { console.warn('Vocabulário não salvo:', e); }
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

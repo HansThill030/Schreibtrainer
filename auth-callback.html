@@ -2,7 +2,11 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<script src="js/theme.js"></script>
 <title>Anmelden…</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -24,16 +28,21 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 // onAuthStateChange captura o SIGNED_IN logo após o Supabase processar o hash
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'SIGNED_IN' && session) {
-    location.href = 'trainer.html#/config';
+    location.href = '/trainer#/config';
   }
 });
 
 // Fallback: se já tem sessão válida, vai direto
 const { data: { session } } = await supabase.auth.getSession();
-if (session) location.href = 'trainer.html#/config';
+if (session) location.href = '/trainer#/config';
 
 // Timeout de segurança — se não redirecionar em 5s, volta pro login
-setTimeout(() => { location.href = 'login.html'; }, 5000);
+setTimeout(() => { location.href = '/login'; }, 5000);
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>

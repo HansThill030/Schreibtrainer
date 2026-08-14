@@ -51,7 +51,7 @@ async function initAuth(){
   const { data } = await _supabase.auth.getSession();
   _session = data.session;
   if (!_session) {
-    location.href = 'login.html';
+    location.href = '/login';
     return false;
   }
   // Atualiza sessão se expirar
@@ -64,7 +64,7 @@ async function initAuth(){
 
 async function signOut(){
   await _supabase.auth.signOut();
-  location.href = 'login.html';
+  location.href = '/login';
 }
 
 function getAuthHeader(){
@@ -129,8 +129,10 @@ function pickReferences(){
 }
 
 /* ---------- Gemini API (via Supabase Edge Function gemini-proxy) ---------- */
-async function callGemini(userPrompt, maxTokens){
+async function callGemini(userPrompt, maxTokens, images){
   assertSupabaseConfig();
+  const body = { prompt: userPrompt, max_tokens: maxTokens || 1000 };
+  if (images && images.length) body.images = images.map(img => ({ mimeType: img.mimeType, data: img.data }));
   const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
     method: "POST",
     headers: {
@@ -138,7 +140,7 @@ async function callGemini(userPrompt, maxTokens){
       "apikey": SUPABASE_KEY,
       "Authorization": "Bearer " + SUPABASE_KEY
     },
-    body: JSON.stringify({ prompt: userPrompt, max_tokens: maxTokens || 1000 })
+    body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -467,9 +469,11 @@ if ($('btnToSchreibenReal')) {
     carregarModellsatzReal(msSeleccionado);
     aufgabeVisivel = true;
     renderAufgabeInline();
+    $('textInput').value = '';
     state.maxPage = Math.max(state.maxPage, 2);
     goToPage('schreiben');
     iniciarCronometro();
+    restaurarRascunho();
   });
 }
 
@@ -529,23 +533,78 @@ if ($('btnBackToConfig')) $('btnBackToConfig').addEventListener('click', () => g
 if ($('btnToSchreiben')) $('btnToSchreiben').addEventListener('click', () => {
   aufgabeVisivel = true;
   renderAufgabeInline();
+  $('textInput').value = '';
   state.maxPage = Math.max(state.maxPage, 2);
   goToPage('schreiben');
   iniciarCronometro();
+  restaurarRascunho();
 });
 
 /* ---------- Page: schreiben ---------- */
+/* ---------- Rascunho automático (localStorage) ---------- */
+const DRAFT_KEY = 'sprachio_draft';
+let draftSaveTimer = null;
+
+function draftIdAtual(){
+  // Identifica a tarefa atual (nível + tipo + tema) pra não misturar rascunhos de tarefas diferentes
+  const thema = state.aufgabaObj?.thema || (state.aufgabaObj?.aufgabe || '').slice(0, 40);
+  return `${state.niveau}|${state.tipoKey}|${thema}`;
+}
+
+function salvarRascunho(){
+  const text = $('textInput').value;
+  if (!text.trim()) { limparRascunho(); return; }
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      id: draftIdAtual(),
+      text,
+      savedAt: new Date().toISOString()
+    }));
+  } catch(e) { /* localStorage indisponível — ignora silenciosamente */ }
+}
+
+function restaurarRascunho(){
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    if (draft.id === draftIdAtual() && draft.text && !$('textInput').value.trim()) {
+      $('textInput').value = draft.text;
+      updateWordCount();
+      mostrarAvisoRascunho();
+    }
+  } catch(e) { /* ignora */ }
+}
+
+function limparRascunho(){
+  try { localStorage.removeItem(DRAFT_KEY); } catch(e) {}
+}
+
+function mostrarAvisoRascunho(){
+  const aviso = document.createElement('div');
+  aviso.textContent = '📝 Rascunho automaticamente wiederhergestellt';
+  aviso.style.cssText = 'font-size:0.78rem;color:var(--ok);margin-bottom:10px;';
+  const wrap = $('textInput')?.closest('.schreibfeld-wrap');
+  if (wrap) wrap.insertBefore(aviso, wrap.firstChild);
+  setTimeout(() => aviso.remove(), 4000);
+}
+
 function updateWordCount(){
   const text = $('textInput').value.trim();
   const count = text ? text.split(/\s+/).length : 0;
   $('wortzahlEl').textContent = count + ' Wörter';
 }
-if ($('textInput')) $('textInput').addEventListener('input', updateWordCount);
+if ($('textInput')) $('textInput').addEventListener('input', () => {
+  updateWordCount();
+  clearTimeout(draftSaveTimer);
+  draftSaveTimer = setTimeout(salvarRascunho, 800);
+});
 if ($('btnBackToAufgabe')) $('btnBackToAufgabe').addEventListener('click', () => goToPage('aufgabe'));
 if ($('btnSenden')) $('btnSenden').addEventListener('click', async () => {
   const text = $('textInput').value.trim();
   if (!text) return;
   pararCronometro();
+  limparRascunho();
   state._textoEnviado = text;
   state.maxPage = Math.max(state.maxPage, 3);
   goToPage('korrektur');
@@ -624,12 +683,14 @@ Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Ba
     "gut_gelungen": ["...", "...", "..."],
     "verbessern": ["...", "...", "..."],
     "naechstes_lernziel": "..."
-  }
+  },
+  "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]
 }
-Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.`;
+Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
+"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen — entweder falsch verwendete Wörter (korrigiert) oder thematisch passende neue Wörter, die der Schüler noch lernen sollte.`;
 
   try {
-    const raw = await callGemini(prompt, 6000);
+    const raw = await callGemini(prompt, 7000);
     const json = extractJson(raw);
     renderFeedbackDSD1(json);
     const feedbackSimples = {
@@ -643,7 +704,7 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.`;
         original: f.original, korrektur: f.zielstruktur, erklaerung: f.kategorie
       }))
     };
-    await salvarHistorico(state._textoEnviado || '', feedbackSimples);
+    await salvarHistorico(state._textoEnviado || '', feedbackSimples, json.vokabelkarten);
   } catch(e) {
     console.error(e);
     $('loadingResult').style.display = 'none';
@@ -673,14 +734,15 @@ Schülertext:
 ${text}
 """
 Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks, auf Deutsch, kurz und konkret. Format:
-{"niveau_einschaetzung": "geschätztes tatsächliches Niveau des Textes", "status": "erreicht" | "knapp erreicht" | "noch nicht erreicht" | "übertroffen", "erfuellung": "1-2 Sätze zur Aufgabenerfüllung", "aufbau": "1-2 Sätze zu Struktur/Konnektoren", "sprache": "1-2 Sätze zu Wortschatz und Grammatik", "korrekturen": [{"original":"kurzer fehlerhafter Ausschnitt","korrektur":"korrigierte Version","erklaerung":"kurze Erklärung"}], "tipp": "ein konkreter nächster Schritt"}
+{"niveau_einschaetzung": "geschätztes tatsächliches Niveau des Textes", "status": "erreicht" | "knapp erreicht" | "noch nicht erreicht" | "übertroffen", "erfuellung": "1-2 Sätze zur Aufgabenerfüllung", "aufbau": "1-2 Sätze zu Struktur/Konnektoren", "sprache": "1-2 Sätze zu Wortschatz und Grammatik", "korrekturen": [{"original":"kurzer fehlerhafter Ausschnitt","korrektur":"korrigierte Version","erklaerung":"kurze Erklärung"}], "tipp": "ein konkreter nächster Schritt", "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]}
+"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen — entweder falsch verwendete Wörter (korrigiert) oder thematisch passende neue Wörter.
 Maximal 6 Korrekturen, wichtigste zuerst.`;
 
   try {
-    const raw = await callGemini(prompt, 3000);
+    const raw = await callGemini(prompt, 3800);
     const json = extractJson(raw);
     renderFeedbackGenerico(json);
-    await salvarHistorico(state._textoEnviado || '', json);
+    await salvarHistorico(state._textoEnviado || '', json, json.vokabelkarten);
   } catch(e) {
     console.error(e);
     $('loadingResult').style.display = 'none';
@@ -811,8 +873,34 @@ function renderFeedbackDSD1(json){
   const stamp = $('stamp');
   stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
 }
+/* ---------- Musterlösung (texto-modelo pra comparar) ---------- */
+if ($('btnMusterloesung')) $('btnMusterloesung').addEventListener('click', async () => {
+  const btn = $('btnMusterloesung');
+  btn.disabled = true;
+  btn.textContent = 'Wird erstellt…';
+  $('musterloesungResult').innerHTML = '';
+  const meta = currentMeta();
+  const prompt = `Du bist DaF-Lehrkraft. Schreibe eine vorbildliche Musterlösung (Beispieltext) für folgende Aufgabe auf Niveau ${niveauLabel(state.niveau)} (Textsorte: ${meta.label}):
+
+${state.aufgabaObj?.aufgabe || ''}
+
+Der Text soll ein realistisches, gut geschriebenes Beispiel für dieses Niveau sein — nicht perfekt-akademisch, sondern wie ein starker Schüler auf diesem Niveau schreiben würde. Antworte NUR mit dem Text selbst, keine Einleitung, keine Erklärung, keine Anführungszeichen.`;
+  try {
+    const texto = await callGemini(prompt, 1500);
+    $('musterloesungResult').innerHTML = `<div class="fokus-result" style="margin-top:12px;">${escapeHtml(texto)}</div>`;
+  } catch(e) {
+    $('musterloesungResult').innerHTML = `<div class="fokus-result" style="margin-top:12px;">Fehler beim Erstellen. Bitte nochmal versuchen.</div>`;
+  }
+  btn.disabled = false;
+  btn.textContent = '📄 Musterlösung anzeigen';
+});
+
 if ($('btnNeueTextsorte')) $('btnNeueTextsorte').addEventListener('click', () => { state.maxPage = 0; goToPage('config'); });
-if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textInput').value=''; updateWordCount(); renderAufgabeInline(); goToPage('schreiben'); iniciarCronometro(); });
+if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => {
+  $('textInput').value=''; updateWordCount(); renderAufgabeInline(); goToPage('schreiben'); iniciarCronometro();
+  if ($('musterloesungResult')) $('musterloesungResult').innerHTML = '';
+  if ($('btnMusterloesung')) $('btnMusterloesung').textContent = '📄 Musterlösung anzeigen';
+});
 
 /* ---------- Init ---------- */
 (async function init(){
@@ -829,7 +917,7 @@ if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => { $('textIn
 /* ================================================================
    CRONÔMETRO
    ================================================================ */
-const TEMPO_PROVA = { A2: 45, B1: 75, C1: 90 }; // minutos
+const TEMPO_PROVA = { A2: 45, B1: 75, C1: 120 }; // minutos
 
 let timerInterval = null;
 let timerSeconds = 0;
@@ -867,7 +955,7 @@ function renderCronometro(){
 /* ================================================================
    HISTÓRICO (Supabase)
    ================================================================ */
-async function salvarHistorico(texto, feedback){
+async function salvarHistorico(texto, feedback, vokabelkarten){
   try {
     const meta = currentMeta();
     await sbFetch('historico', {
@@ -889,8 +977,32 @@ async function salvarHistorico(texto, feedback){
         korrekturen: JSON.stringify(feedback.korrekturen || []),
       })
     });
+    await salvarVocabulario(vokabelkarten, state.niveau);
   } catch(e) {
     console.warn('Histórico não salvo:', e);
+  }
+}
+
+async function salvarVocabulario(cartas, niveau){
+  if (!cartas || !cartas.length) return;
+  try {
+    const amanha = new Date();
+    amanha.setDate(amanha.getDate() + 1);
+    const rows = cartas.slice(0, 6).map(c => ({
+      user_id: _session?.user?.id,
+      wort: c.wort,
+      bedeutung: c.bedeutung,
+      beispiel: c.beispiel || null,
+      niveau,
+      proxima_revisao: amanha.toISOString().slice(0,10)
+    }));
+    await sbFetch('vocabulario', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify(rows)
+    });
+  } catch(e) {
+    console.warn('Vocabulário não salvo:', e);
   }
 }
 

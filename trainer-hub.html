@@ -2,16 +2,20 @@
 <html lang="de">
 <head>
 <meta charset="UTF-8">
+<script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trainer — Sprachio</title>
 <link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 <div class="wrap">
 
   <div class="masthead">
-    <a class="brand" href="index.html">
+    <a class="brand" href="/">
       <img src="assets/mark.png" alt="Sprachio">
       <span>
         <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
@@ -19,7 +23,7 @@
     </a>
     <div class="header-actions">
       <span id="userEmail" style="font-size:0.8rem;color:var(--ink-faint);"></span>
-      <a class="home-link" href="index.html">← Startseite</a>
+      <a class="home-link" href="/">← Startseite</a>
     </div>
   </div>
 
@@ -29,19 +33,39 @@
   </section>
 
   <div class="action-grid">
-    <a class="action-card primary" href="trainer.html#/config">
+    <a class="action-card primary" href="/trainer#/config">
       <span class="t">Training starten →</span>
       <span class="d">Neue Aufgabe generieren oder Modellsatz üben.</span>
     </a>
-    <a class="action-card" href="login.html" id="linkAuth">
+    <a class="action-card" href="/freie-korrektur">
+      <span class="t">✍️ Freie Korrektur</span>
+      <span class="d">Foto oder getippter Text — z.B. Klassenarbeiten, handschriftlich.</span>
+    </a>
+    <a class="action-card" href="/login" id="linkAuth">
       <span class="t">Anmelden / Registrieren</span>
       <span class="d">Mit Google oder E-Mail. Verlauf auf allen Geräten.</span>
     </a>
-    <a class="action-card" href="historico.html">
+    <a class="action-card" href="/historico">
       <span class="t">Mein Verlauf</span>
       <span class="d">Alle Übungen, Korrekturen und dein Fortschritt.</span>
     </a>
+    <a class="action-card" href="/vokabeln">
+      <span class="t">🗂️ Vokabeln</span>
+      <span class="d">Flashcards aus deinen Korrekturen, mit Wiederholung.</span>
+    </a>
+    <a class="action-card" href="/professor">
+      <span class="t">🎓 Lehrer-Modus</span>
+      <span class="d">Klassen erstellen, Fortschritt sehen, Aufgaben teilen.</span>
+    </a>
   </div>
+
+  <div class="section-label">Klassencode eingeben</div>
+  <div class="form-inline" style="display:flex;gap:10px;margin-bottom:32px;">
+    <input type="text" id="inputCodigoTurma" placeholder="z.B. AB12CD" maxlength="6" style="flex:1;min-width:160px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:0.94rem;text-transform:uppercase;">
+    <button class="primary" id="btnEntrarTurma">Beitreten</button>
+  </div>
+  <div id="turmaJoinMsg" style="display:none;font-size:0.85rem;margin:-20px 0 12px;"></div>
+  <div style="margin-bottom:32px;"><a class="home-link" href="/minhas-turmas">📋 Meine Klassen anzeigen</a></div>
 
   <div class="section-label">Verfügbare Niveaus</div>
   <div class="level-grid">
@@ -63,7 +87,7 @@
   </div>
 
   <footer class="site-footer">
-    <a class="brand" href="index.html">
+    <a class="brand" href="/">
       <img src="assets/mark.png" alt="Sprachio">
       <span>
         <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
@@ -78,10 +102,12 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
 const SUPABASE_KEY = window.SCHREIBTRAINER_CONFIG?.SUPABASE_ANON_KEY || "";
+let sessaoAtual = null;
 if (SUPABASE_URL) {
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const { data: { session } } = await supabase.auth.getSession();
   if (session) {
+    sessaoAtual = session;
     document.getElementById('userEmail').textContent = session.user.email;
     const a = document.getElementById('linkAuth');
     a.href = '#';
@@ -93,6 +119,64 @@ if (SUPABASE_URL) {
       location.reload();
     });
   }
+
+  function sbFetch(path, options={}){
+    const headers=Object.assign({
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + (sessaoAtual?.access_token || SUPABASE_KEY),
+      'Content-Type':'application/json'
+    }, options.headers||{});
+    return fetch(`${SUPABASE_URL}/rest/v1/${path}`, Object.assign({}, options, { headers }));
+  }
+
+  document.getElementById('btnEntrarTurma')?.addEventListener('click', async () => {
+    const msgEl = document.getElementById('turmaJoinMsg');
+    const codigo = document.getElementById('inputCodigoTurma').value.trim().toUpperCase();
+    if (!codigo) return;
+    if (!sessaoAtual) {
+      msgEl.style.display = 'block';
+      msgEl.style.color = 'var(--err)';
+      msgEl.textContent = 'Bitte zuerst anmelden.';
+      return;
+    }
+    try {
+      const res = await sbFetch(`turmas?codigo=eq.${codigo}&select=id,nome`);
+      const turmas = await res.json();
+      if (!Array.isArray(turmas) || !turmas.length) {
+        msgEl.style.display = 'block'; msgEl.style.color = 'var(--err)';
+        msgEl.textContent = 'Code nicht gefunden.';
+        return;
+      }
+      const turma = turmas[0];
+
+      // Verifica se já é membro antes de tentar inserir
+      const resCheck = await sbFetch(`turma_membros?turma_id=eq.${turma.id}&user_id=eq.${sessaoAtual.user.id}&select=turma_id`);
+      const jaMembro = await resCheck.json();
+      if (Array.isArray(jaMembro) && jaMembro.length) {
+        msgEl.style.display = 'block'; msgEl.style.color = 'var(--warn)';
+        msgEl.textContent = `Du bist schon Mitglied von "${turma.nome}".`;
+        return;
+      }
+
+      const resJoin = await sbFetch('turma_membros', {
+        method: 'POST',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ turma_id: turma.id, user_id: sessaoAtual.user.id })
+      });
+      if (!resJoin.ok) throw new Error('join failed');
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--ok)';
+      msgEl.textContent = `Beigetreten: ${turma.nome} ✓`;
+      document.getElementById('inputCodigoTurma').value = '';
+    } catch(e) {
+      msgEl.style.display = 'block'; msgEl.style.color = 'var(--err)';
+      msgEl.textContent = 'Fehler beim Beitreten. Bitte Code prüfen und erneut versuchen.';
+    }
+  });
+}
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
 }
 </script>
 </body>
