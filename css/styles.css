@@ -1,13 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap');
+/* Fonte carregada via <link rel="preload"> no <head> de cada página (não-bloqueante) */
 
 :root{
   --bg:#f8f8fc;
   --card:#ffffff;
   --ink:#1e1b4b;
   --ink-soft:#5b5786;
-  --ink-faint:#8b88ab;
+  --ink-faint:#6f6c96;
   --line:#e6e3f4;
-  --indigo:#6366f1;
+  --indigo:#5e60e4;
   --purple:#a855f7;
   --accent:#6d28d9;
   --ok:#0f9d6d;
@@ -21,7 +21,7 @@
   --card:#1e1b2e;
   --ink:#ede9fe;
   --ink-soft:#a8a3c9;
-  --ink-faint:#6f6a94;
+  --ink-faint:#8f8ab8;
   --line:#332f4a;
   --indigo:#818cf8;
   --purple:#c084fc;

@@ -1,16 +1,14 @@
 # Sprachio
 
-> Sprachio ist eine Lernplattform für Deutsch als Fremdsprache mit Fokus auf
-> das Deutsche Sprachdiplom (DSD). Nutzer üben Schreibaufgaben (IVA 2, DSD I,
-> DSD II) und erhalten KI-gestützte Korrekturen mit Niveau-Einschätzung.
+> Sprachio ist eine Lernplattform für Deutsch als Fremdsprache mit Fokus auf das Deutsche Sprachdiplom (DSD). Nutzer üben KI-generierte Schreibaufgaben (IVA 2, DSD I, DSD II) und erhalten sofortige, niveaugerechte Korrekturen.
 
-## Über Sprachio
+Die Plattform generiert Schreibaufgaben orientiert an echten Prüfungs-Modellsätzen, bewertet eingereichte Texte (getippt oder als Foto eines handschriftlichen Textes) nach den jeweiligen Bewertungskriterien und bietet Vokabelwiederholung sowie Fortschrittsverfolgung.
 
-Sprachio generiert realistische Schreibaufgaben orientiert an echten
-Prüfungs-Modellsätzen und bewertet eingereichte Texte nach den jeweiligen
-Bewertungskriterien. Die Plattform unterstützt sowohl generierte Aufgaben als
-auch freie Korrektur von handschriftlichen oder getippten Texten.
+## Pages
 
-## Kontakt
+- [Startseite](https://sprachio.hanst030.com/): Überblick über Sprachio und Einstieg ins Training.
+- [Trainer](https://sprachio.hanst030.com/trainer-hub): Zugang zu Übungsmodus, Verlauf, Vokabeln und Lehrer-Modus.
 
-Für Fragen zur Nutzung: siehe Startseite.
+## Optional
+
+- Freie Korrektur, Vokabel-Wiederholung und Lehrer-Modus erfordern eine Anmeldung und sind nicht öffentlich indexierbar.
