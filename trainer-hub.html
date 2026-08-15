@@ -1,15 +1,96 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S08J1DDYNH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-S08J1DDYNH');
+</script>
+
 <meta charset="UTF-8">
 <script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trainer — Sprachio</title>
+<meta name="description" content="Wähle dein Niveau und übe Schreibaufgaben fürs Deutsche Sprachdiplom mit KI-Korrektur.">
 <link rel="icon" href="assets/mark.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e1b4b">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
 <link rel="stylesheet" href="css/styles.css">
+<style>
+.hub-hero{padding:8px 0 28px;}
+.hub-hero .greet{
+  font-family:'IBM Plex Mono',monospace;font-size:0.76rem;color:var(--accent);
+  text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;
+}
+.hub-hero h2{font-size:clamp(1.5rem,3.5vw,2.1rem);margin:0 0 8px;}
+.hub-hero p{color:var(--ink-soft);font-size:0.94rem;margin:0;max-width:520px;}
+
+.login-banner{
+  display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--indigo);border-radius:var(--r);
+  padding:16px 20px;margin-bottom:28px;
+}
+.login-banner .txt{font-size:0.9rem;color:var(--ink-soft);}
+.login-banner .txt strong{color:var(--ink);}
+
+.hub-section{margin-bottom:32px;}
+.hub-section-head{
+  display:flex;align-items:baseline;gap:8px;margin-bottom:14px;
+}
+.hub-section-head .icon{font-size:1.1rem;}
+.hub-section-head h3{
+  font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:700;margin:0;
+}
+
+.tile-grid-lg{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;}
+.tile-grid-sm{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+
+.tile{
+  display:block;background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:22px 22px 20px;transition:border-color .15s ease, transform .12s ease;
+  position:relative;overflow:hidden;
+}
+.tile:hover{border-color:var(--indigo);transform:translateY(-1px);text-decoration:none;}
+.tile .tile-icon{font-size:2rem;display:block;margin-bottom:12px;line-height:1;}
+.tile .tile-title{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:1.08rem;color:var(--ink);margin-bottom:4px;}
+.tile .tile-desc{font-size:0.85rem;color:var(--ink-soft);line-height:1.5;}
+.tile.tile-primary{background:var(--ink);border-color:var(--ink);}
+.tile.tile-primary .tile-title{color:#fff;}
+.tile.tile-primary .tile-desc{color:rgba(255,255,255,0.7);}
+.tile.tile-primary:hover{border-color:var(--indigo);}
+
+.tile-sm{
+  display:block;background:var(--card);border:1px solid var(--line);border-radius:var(--r-sm);
+  padding:16px 18px;transition:border-color .15s ease;
+}
+.tile-sm:hover{border-color:var(--indigo);text-decoration:none;}
+.tile-sm .tile-sm-icon{font-size:1.5rem;display:block;margin-bottom:8px;}
+.tile-sm .tile-sm-title{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:0.92rem;color:var(--ink);}
+
+.join-card{
+  background:var(--card);border:1px dashed var(--line);border-radius:var(--r);
+  padding:18px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.join-card .join-icon{font-size:1.8rem;flex-shrink:0;}
+.join-card .join-txt{flex:1;min-width:180px;}
+.join-card .join-txt .tt{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:0.94rem;}
+.join-card .join-txt .dd{font-size:0.8rem;color:var(--ink-faint);}
+.join-card .join-form{display:flex;gap:8px;flex-wrap:wrap;}
+.join-card input{
+  padding:10px 12px;border:1px solid var(--line);border-radius:var(--r-sm);
+  font-family:inherit;font-size:0.9rem;text-transform:uppercase;width:130px;
+}
+
+.level-pills{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.level-pill{
+  font-family:'Space Grotesk',sans-serif;font-size:0.78rem;font-weight:600;
+  padding:6px 14px;border-radius:20px;border:1px solid var(--line);color:var(--ink-soft);
+}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -27,62 +108,86 @@
     </div>
   </div>
 
-  <section class="hub-intro">
-    <h2>Willkommen im Trainer</h2>
-    <p>Wähle dein Niveau, lass dir eine neue Aufgabe generieren oder übe einen echten Modellsatz. Dein Verlauf wird automatisch gespeichert.</p>
+  <section class="hub-hero">
+    <div class="greet" id="greetLabel">Trainer</div>
+    <h2>Was möchtest du heute üben?</h2>
+    <p>Wähle eine Aktion unten — dein Fortschritt wird automatisch gespeichert.</p>
   </section>
 
-  <div class="action-grid">
-    <a class="action-card primary" href="/trainer#/config">
-      <span class="t">Training starten →</span>
-      <span class="d">Neue Aufgabe generieren oder Modellsatz üben.</span>
-    </a>
-    <a class="action-card" href="/freie-korrektur">
-      <span class="t">✍️ Freie Korrektur</span>
-      <span class="d">Foto oder getippter Text — z.B. Klassenarbeiten, handschriftlich.</span>
-    </a>
-    <a class="action-card" href="/login" id="linkAuth">
-      <span class="t">Anmelden / Registrieren</span>
-      <span class="d">Mit Google oder E-Mail. Verlauf auf allen Geräten.</span>
-    </a>
-    <a class="action-card" href="/historico">
-      <span class="t">Mein Verlauf</span>
-      <span class="d">Alle Übungen, Korrekturen und dein Fortschritt.</span>
-    </a>
-    <a class="action-card" href="/vokabeln">
-      <span class="t">🗂️ Vokabeln</span>
-      <span class="d">Flashcards aus deinen Korrekturen, mit Wiederholung.</span>
-    </a>
-    <a class="action-card" href="/professor">
-      <span class="t">🎓 Lehrer-Modus</span>
-      <span class="d">Klassen erstellen, Fortschritt sehen, Aufgaben teilen.</span>
-    </a>
+  <div id="loginBannerWrap"></div>
+
+  <div class="hub-section">
+    <div class="hub-section-head"><span class="icon">🎯</span><h3>Üben</h3></div>
+    <div class="tile-grid-lg">
+      <a class="tile tile-primary" href="/trainer#/config">
+        <span class="tile-icon">🎯</span>
+        <div class="tile-title">Training starten</div>
+        <div class="tile-desc">Neue Aufgabe generieren lassen oder einen echten Modellsatz üben — nach Niveau.</div>
+      </a>
+      <a class="tile" href="/freie-korrektur">
+        <span class="tile-icon">📸</span>
+        <div class="tile-title">Freie Korrektur</div>
+        <div class="tile-desc">Foto von handschriftlichem Text hochladen oder direkt tippen — z.B. Klassenarbeiten.</div>
+      </a>
+    </div>
   </div>
 
-  <div class="section-label">Klassencode eingeben</div>
-  <div class="form-inline" style="display:flex;gap:10px;margin-bottom:32px;">
-    <input type="text" id="inputCodigoTurma" placeholder="z.B. AB12CD" maxlength="6" style="flex:1;min-width:160px;padding:11px 13px;border:1px solid var(--line);border-radius:var(--r-sm);font-family:inherit;font-size:0.94rem;text-transform:uppercase;">
-    <button class="primary" id="btnEntrarTurma">Beitreten</button>
+  <div class="hub-section">
+    <div class="hub-section-head"><span class="icon">📈</span><h3>Fortschritt</h3></div>
+    <div class="tile-grid-sm">
+      <a class="tile-sm" href="/historico">
+        <span class="tile-sm-icon">📊</span>
+        <div class="tile-sm-title">Mein Verlauf</div>
+      </a>
+      <a class="tile-sm" href="/vokabeln">
+        <span class="tile-sm-icon">🗂️</span>
+        <div class="tile-sm-title">Vokabeln</div>
+      </a>
+      <a class="tile-sm" href="/minhas-turmas">
+        <span class="tile-sm-icon">👥</span>
+        <div class="tile-sm-title">Meine Klassen</div>
+      </a>
+      <a class="tile-sm" href="/professor">
+        <span class="tile-sm-icon">🎓</span>
+        <div class="tile-sm-title">Lehrer-Modus</div>
+      </a>
+    </div>
   </div>
-  <div id="turmaJoinMsg" style="display:none;font-size:0.85rem;margin:-20px 0 12px;"></div>
-  <div style="margin-bottom:32px;"><a class="home-link" href="/minhas-turmas">📋 Meine Klassen anzeigen</a></div>
 
-  <div class="section-label">Verfügbare Niveaus</div>
-  <div class="level-grid">
-    <div class="level-card">
-      <div class="lv">IVA 2</div>
-      <span class="cefr">prä-DSD</span>
-      <p>Einstieg vor dem DSD: kurze E-Mails und einfache Texte mit klarer Struktur.</p>
+  <div class="hub-section">
+    <div class="hub-section-head"><span class="icon">🔑</span><h3>Klasse beitreten</h3></div>
+    <div class="join-card">
+      <span class="join-icon">🔑</span>
+      <div class="join-txt">
+        <div class="tt">Beitrittscode eingeben</div>
+        <div class="dd">Von deiner Lehrkraft erhalten</div>
+      </div>
+      <div class="join-form">
+        <input type="text" id="inputCodigoTurma" placeholder="AB12CD" maxlength="6">
+        <button class="primary" id="btnEntrarTurma">Beitreten</button>
+      </div>
     </div>
-    <div class="level-card">
-      <div class="lv">DSD I</div>
-      <span class="cefr">B1</span>
-      <p>Beitrag oder Leserbrief mit Argumentation, Beispielen und eigener Meinung.</p>
-    </div>
-    <div class="level-card">
-      <div class="lv">DSD II</div>
-      <span class="cefr">B2 / C1</span>
-      <p>Erörterung mit Grafikauswertung, Gegenargumenten und differenzierter Sprache.</p>
+    <div id="turmaJoinMsg" style="display:none;font-size:0.85rem;margin-top:10px;"></div>
+  </div>
+
+  <div class="hub-section">
+    <div class="hub-section-head"><span class="icon">📚</span><h3>Verfügbare Niveaus</h3></div>
+    <div class="level-grid">
+      <div class="level-card">
+        <div class="lv">IVA 2</div>
+        <span class="cefr">prä-DSD</span>
+        <p>Einstieg vor dem DSD: kurze E-Mails und einfache Texte mit klarer Struktur.</p>
+      </div>
+      <div class="level-card">
+        <div class="lv">DSD I</div>
+        <span class="cefr">B1</span>
+        <p>Beitrag oder Leserbrief mit Argumentation, Beispielen und eigener Meinung.</p>
+      </div>
+      <div class="level-card">
+        <div class="lv">DSD II</div>
+        <span class="cefr">B2 / C1</span>
+        <p>Erörterung mit Grafikauswertung, Gegenargumenten und differenzierter Sprache.</p>
+      </div>
     </div>
   </div>
 
@@ -106,18 +211,28 @@ let sessaoAtual = null;
 if (SUPABASE_URL) {
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
   const { data: { session } } = await supabase.auth.getSession();
+  const bannerWrap = document.getElementById('loginBannerWrap');
+  const greetLabel = document.getElementById('greetLabel');
+
   if (session) {
     sessaoAtual = session;
     document.getElementById('userEmail').textContent = session.user.email;
-    const a = document.getElementById('linkAuth');
-    a.href = '#';
-    a.querySelector('.t').textContent = 'Abmelden';
-    a.querySelector('.d').textContent = session.user.email;
-    a.addEventListener('click', async (e) => {
-      e.preventDefault();
+    greetLabel.textContent = 'Willkommen zurück';
+    bannerWrap.innerHTML = `
+      <div class="login-banner">
+        <div class="txt">Angemeldet als <strong>${session.user.email}</strong></div>
+        <button class="ghost" id="btnAbmelden" style="font-size:0.8rem;padding:8px 16px;">Abmelden</button>
+      </div>`;
+    document.getElementById('btnAbmelden').addEventListener('click', async () => {
       await supabase.auth.signOut();
       location.reload();
     });
+  } else {
+    bannerWrap.innerHTML = `
+      <div class="login-banner">
+        <div class="txt">Melde dich an, damit dein Fortschritt gespeichert wird.</div>
+        <a class="big-cta" href="/login" style="padding:9px 20px;font-size:0.85rem;">Anmelden / Registrieren</a>
+      </div>`;
   }
 
   function sbFetch(path, options={}){
