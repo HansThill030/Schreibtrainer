@@ -1,7 +1,17 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S08J1DDYNH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-S08J1DDYNH');
+</script>
+
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Verlauf — Sprachio</title>
@@ -9,15 +19,19 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e1b4b">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"></noscript>
 <link rel="stylesheet" href="css/styles.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script defer src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" role="main">
 
   <div class="masthead">
     <a class="brand" href="/">
-      <img src="assets/mark.png" alt="Sprachio">
+      <img src="assets/mark.png" alt="Sprachio" width="53" height="60">
       <span>
         <span class="name">SPRACHIO</span>
       </span>
@@ -288,12 +302,7 @@ function exportarPDF(r){
 
       <h2>Nächster Schritt</h2>
       <p>${escapeHtml(r.tipp || '')}</p>
-    <script>
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
-}
-</script>
-</body></html>
+    </body></html>
   `);
   win.document.close();
   setTimeout(() => win.print(), 400);
@@ -363,6 +372,11 @@ document.querySelectorAll('.filter-btn').forEach(btn=>{
 });
 
 carregar();
+</script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
 </script>
 </body>
 </html>

@@ -1,7 +1,17 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-S08J1DDYNH"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-S08J1DDYNH');
+</script>
+
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Freie Korrektur — Sprachio</title>
@@ -9,6 +19,10 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e1b4b">
 <link rel="apple-touch-icon" href="assets/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"></noscript>
 <link rel="stylesheet" href="css/styles.css">
 <style>
 .mode-tabs{display:flex;gap:6px;margin-bottom:16px;}
@@ -65,11 +79,11 @@ textarea.big.small{min-height:220px;}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="wrap" role="main">
 
   <div class="masthead">
     <a class="brand" href="/">
-      <img src="assets/mark.png" alt="Sprachio">
+      <img src="assets/mark.png" alt="Sprachio" width="53" height="60">
       <span><span class="name">SPRACHIO</span></span>
     </a>
     <div class="header-actions">
@@ -167,6 +181,14 @@ function sbFetch(path, options={}){
 const NIVEAUS = ['A2','B1','C1'];
 const NIVEAU_LABELS = { A2:'IVA 2', B1:'DSD I', C1:'DSD II' };
 function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
+function wortlisteHinweis(niveau){
+  const map = {
+    A2: 'der Goethe-Institut A2-Wortliste (GER-Niveau A2)',
+    B1: 'der Goethe-Institut B1-Wortliste (GER-Niveau B1)',
+    C1: 'den Goethe-Institut B2- und C1-Wortlisten (GER-Niveau B2/C1)'
+  };
+  return map[niveau] || 'dem entsprechenden GER-Niveau';
+}
 
 const state = { niveau:'B1', modo:'foto', imagens:[] }; // imagens: [{mimeType, data(base64), previewUrl}]
 let ultimaAufgabenstellung = '';
@@ -385,6 +407,7 @@ WICHTIGE BEWERTUNGSGRUNDSÄTZE:
 - Wohlwollende Bewertung
 - Verständlichkeit hat Vorrang vor Fehlerfreiheit
 - Strukturen (Kategorie 6) und Grammatik (Kategorie 7) STRIKT GETRENNT bewerten — Strukturen = Vielfalt und Angemessenheit, Grammatik = Korrektheit
+- Bei Kategorie 5 (Wortschatz): Vergleiche den verwendeten Wortschatz mit ${wortlisteHinweis('B1')}. Wörter deutlich darüber sind kein Fehler, aber wenn der Wortschatz spürbar unter B1 bleibt, erwähne das in der Begründung.
 - Jede Punktevergabe mit konkreten Textbelegen begründen
 - Bei Grenzfällen transparent erläutern
 
@@ -452,6 +475,8 @@ async function runKorrekturGenerico(aufgabenstellung, textoDigitado, imagens){
   const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte den folgenden Schülertext auf Zielniveau ${nivelDesc}. Sei präzise und schnell, keine langen Einleitungen.
 
 HINWEIS: Dies ist eine vorläufige, allgemeine Korrektur (kein offizielles Bewertungsraster für dieses Prüfungsformat). Dies ist außerdem eine freie Aufgabe aus dem Unterricht, keine automatisch generierte Aufgabe.
+
+Wortschatz-Kalibrierung: Bewerte den verwendeten Wortschatz auch im Vergleich zu ${wortlisteHinweis(state.niveau)} — erwähne im "sprache"-Feld, ob der Wortschatz spürbar über, unter oder genau auf diesem Niveau liegt.
 
 Vorgegebene Aufgabenstellung/Thema: ${aufgabenstellung}
 

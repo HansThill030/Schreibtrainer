@@ -27,6 +27,18 @@ const $ = id => document.getElementById(id);
 function currentMeta(){ return TEXTSORTEN[state.niveau].find(t => t.key === state.tipoKey); }
 function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
 
+/* Referência de vocabulário oficial (Goethe-Institut Wortliste / GER) por nível —
+   usado tanto na geração de tarefas quanto na correção, pra calibrar dificuldade
+   de forma consistente com um padrão reconhecido, sem reproduzir a lista em si. */
+function wortlisteHinweis(niveau){
+  const map = {
+    A2: 'der Goethe-Institut A2-Wortliste (GER-Niveau A2)',
+    B1: 'der Goethe-Institut B1-Wortliste (GER-Niveau B1)',
+    C1: 'den Goethe-Institut B2- und C1-Wortlisten (GER-Niveau B2/C1)'
+  };
+  return map[niveau] || 'dem entsprechenden GER-Niveau';
+}
+
 
 /* ---------- Supabase ---------- */
 const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
@@ -281,7 +293,8 @@ async function gerarGenerico(meta){
     ? '\n\nWichtig: Bei DSD II ist die Aufgabe für B2 und C1 identisch — nur die erreichte Punktzahl in der Prüfung entscheidet, welches Niveau am Ende verliehen wird. Erstelle also eine reguläre DSD-II-Aufgabe; der Schwierigkeitsgrad-Regler darf das Thema/den Wortschatz trotzdem leicht anspruchsvoller oder zugänglicher gestalten.'
     : '';
   const prompt = `Du bist Experte für die Erstellung von Prüfungsaufgaben des Deutschen Sprachdiploms (DSD). Erstelle ${meta.promptDesc}
-Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${niveauLabel(state.niveau)}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).${dsdHinweis}${refBlock}
+Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${niveauLabel(state.niveau)}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).
+Wortschatz: Kalibriere Thema und Formulierungen am Wortschatzniveau ${wortlisteHinweis(state.niveau)} — nicht künstlich vereinfacht, aber auch nicht spürbar darüber.${dsdHinweis}${refBlock}
 Erfinde ein NEUES, noch nicht verwendetes Thema. Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
 {"aufgabe": "vollständiger Aufgabentext auf Deutsch inkl. Situation/Kontext, nummerierter/aufgezählter Punkte und Bearbeitungszeit", "quelltext": "Ausgangstext oder Grafikbeschreibung falls zutreffend, sonst leerer String"}`;
   const raw = await callGemini(prompt, 4000);
@@ -305,6 +318,7 @@ async function gerarA2Email(meta){
     $('refNote').textContent = 'Kein passender Modellsatz im Banco gespeichert — Aufgabe wird nach allgemeinem Muster generiert.';
   }
   const prompt = `Du bist Experte für die Erstellung von DSD-I-Prüfungsaufgaben (Deutsches Sprachdiplom) auf A2-Niveau, Schwierigkeitsgrad ${state.schwierigkeit}/8 (1 = ganz einfaches, konkretes Alltagsthema, 8 = etwas anspruchsvolleres Thema mit mehr Wortschatz, aber immer noch A2-passend).
+Wortschatz: Bleib strikt im Rahmen ${wortlisteHinweis('A2')} — einfache, hochfrequente Alltagswörter, kurze Sätze, keine komplexen Nebensatzkonstruktionen.
 Wähle ein NEUES, altersgerechtes Alltagsthema für Jugendliche (nicht Ferien, Sport oder Wochenende, das ist schon oft benutzt worden — such etwas anderes, z.B. Schule, Haustiere, Hobbys, Familie, Essen, Freunde, Geburtstag, Handy, o.ä.).${refBlock}
 Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
 {"thema": "ein Wort oder kurzer Begriff, z.B. 'Schule' oder 'Haustiere'", "einleitung": "zwei Sätze im Stil: '[Name] wohnt in Deutschland. Ihr schreibt euch regelmäßig E-Mails. In seiner/ihrer letzten E-Mail hat [Name] erzählt, [was er/sie erzählt hat, passend zum Thema].' (oder alternativ die Brieffreund-Variante wie im Beispiel 'Ferien')", "aufforderung": "ein Satz: 'Schreibe [Name] eine E-Mail zurück.' oder 'Beantworte [Name]s Brief.' (passend zur Einleitung)", "punkte": ["Frage/Aufforderung 1", "Frage/Aufforderung 2", "Frage/Aufforderung 3", "Frage/Aufforderung 4"]}
@@ -343,6 +357,7 @@ async function gerarB1Forum(meta){
 AUFGABE: Erstelle die variablen Teile für eine neue Aufgabe im exakt gleichen Format wie die echten Modellsätze.
 
 SCHWIERIGKEITSGRAD ${state.schwierigkeit}/8: ${schwierigkeitsHinweis}
+Wortschatz-Referenz: ${wortlisteHinweis('B1')} — auch beim anspruchsvollsten Schwierigkeitsgrad nicht darüber hinausgehen.
 
 REGELN (unbedingt einhalten):
 1. Antworte NUR mit einem einzigen JSON-Objekt. Kein Text davor oder danach. Keine Markdown-Backticks (\`\`\`).
@@ -651,6 +666,7 @@ WICHTIGE BEWERTUNGSGRUNDSÄTZE:
 - Wohlwollende Bewertung
 - Verständlichkeit hat Vorrang vor Fehlerfreiheit
 - Strukturen (Kategorie 6) und Grammatik (Kategorie 7) STRIKT GETRENNT bewerten — Strukturen = Vielfalt und Angemessenheit, Grammatik = Korrektheit
+- Bei Kategorie 5 (Wortschatz): Vergleiche den verwendeten Wortschatz mit ${wortlisteHinweis('B1')}. Wörter deutlich darüber sind kein Fehler (im Gegenteil, das kann positiv erwähnt werden), aber wenn der Wortschatz spürbar unter dem B1-Niveau bleibt, erwähne das in der Begründung.
 - Jede Punktevergabe mit konkreten Textbelegen begründen
 - Bei Grenzfällen transparent erläutern
 
@@ -727,6 +743,8 @@ async function runKorrekturGenerico(text){
   const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte folgenden Schülertext für die Textsorte "${meta.label}" auf Zielniveau ${nivelDesc} (Schwierigkeitsgrad der Aufgabe: ${state.schwierigkeit}/8). Sei präzise und schnell, keine langen Einleitungen.
 
 HINWEIS: Dies ist eine vorläufige, allgemeine Korrektur (kein offizielles Bewertungsraster für dieses Prüfungsformat).
+
+Wortschatz-Kalibrierung: Bewerte den verwendeten Wortschatz auch im Vergleich zu ${wortlisteHinweis(state.niveau)} — erwähne im "sprache"-Feld, ob der Wortschatz spürbar über, unter oder genau auf diesem Niveau liegt.
 
 Aufgabe: ${state.aufgabaObj.aufgabe}${quelltextInfo}
 Schülertext:

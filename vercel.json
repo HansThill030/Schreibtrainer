@@ -17,6 +17,12 @@
       "headers": [
         { "key": "X-Robots-Tag", "value": "noindex" }
       ]
+    },
+    {
+      "source": "/(trainer|historico|vokabeln|freie-korrektur|professor|minhas-turmas|login|auth-callback|reset-password)",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" }
+      ]
     }
   ]
 }
