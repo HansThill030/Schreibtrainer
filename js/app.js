@@ -293,6 +293,23 @@ async function gerarComIA(){
   $('btnGerarIA').disabled = false;
 }
 
+/* Evita que gerações consecutivas na mesma sessão saiam com o mesmo tema —
+   o modelo tende a convergir pro "tema mais provável" se o prompt for quase
+   idêntico a cada chamada. Aqui a gente rastreia o que já saiu nesta sessão
+   e injeta isso + um "sal" aleatório no prompt, pra forçar variedade real. */
+let temasGeradosSessao = [];
+function notaAntiRepeticao(temasBanidosFixos){
+  const todos = [...temasBanidosFixos, ...temasGeradosSessao];
+  const listaTexto = todos.length
+    ? `\n\nTHEMEN, DIE NICHT VERWENDET WERDEN DÜRFEN (schon benutzt): ${todos.join(', ')}.`
+    : '';
+  const nonce = Math.floor(Math.random() * 1000000);
+  return `${listaTexto}\nVariationswert (nur intern zur Auflockerung, im Ergebnis ignorieren): ${nonce}`;
+}
+function registrarTemaGerado(tema){
+  if (tema) temasGeradosSessao.push(tema);
+}
+
 async function gerarGenerico(meta){
   const refs = pickReferences();
   let refBlock = '';
@@ -309,10 +326,11 @@ async function gerarGenerico(meta){
   const prompt = `Du bist Experte für die Erstellung von Prüfungsaufgaben des Deutschen Sprachdiploms (DSD). Erstelle ${meta.promptDesc}
 Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${niveauLabel(state.niveau)}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).
 Wortschatz: Kalibriere Thema und Formulierungen am Wortschatzniveau ${wortlisteHinweis(state.niveau)} — nicht künstlich vereinfacht, aber auch nicht spürbar darüber.${dsdHinweis}${refBlock}
-Erfinde ein NEUES, noch nicht verwendetes Thema. Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
-{"aufgabe": "vollständiger Aufgabentext auf Deutsch inkl. Situation/Kontext, nummerierter/aufgezählter Punkte und Bearbeitungszeit", "quelltext": "Ausgangstext oder Grafikbeschreibung falls zutreffend, sonst leerer String"}`;
+Erfinde ein NEUES, noch nicht verwendetes Thema — wähle bewusst aus einem anderen Lebensbereich als zuletzt (z.B. abwechselnd Schule, Umwelt, Technologie, Gesundheit, Reisen, soziales Leben, Zukunftspläne, Arbeit/Beruf, Konsum, Medien).${notaAntiRepeticao([])} Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
+{"thema": "kurzes Stichwort für interne Zwecke", "aufgabe": "vollständiger Aufgabentext auf Deutsch inkl. Situation/Kontext, nummerierter/aufgezählter Punkte und Bearbeitungszeit", "quelltext": "Ausgangstext oder Grafikbeschreibung falls zutreffend, sonst leerer String"}`;
   const raw = await callGemini(prompt, 4000);
   const json = extractJson(raw);
+  registrarTemaGerado(json.thema);
   state.aufgabaObj = json;
   $('aufgabeTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label}`;
   $('aufgabeSchwierigkeit').textContent = `Schwierigkeit ${state.schwierigkeit}/8`;
@@ -333,12 +351,13 @@ async function gerarA2Email(meta){
   }
   const prompt = `Du bist Experte für die Erstellung von DSD-I-Prüfungsaufgaben (Deutsches Sprachdiplom) auf A2-Niveau, Schwierigkeitsgrad ${state.schwierigkeit}/8 (1 = ganz einfaches, konkretes Alltagsthema, 8 = etwas anspruchsvolleres Thema mit mehr Wortschatz, aber immer noch A2-passend).
 Wortschatz: Bleib strikt im Rahmen ${wortlisteHinweis('A2')} — einfache, hochfrequente Alltagswörter, kurze Sätze, keine komplexen Nebensatzkonstruktionen.
-Wähle ein NEUES, altersgerechtes Alltagsthema für Jugendliche (nicht Ferien, Sport oder Wochenende, das ist schon oft benutzt worden — such etwas anderes, z.B. Schule, Haustiere, Hobbys, Familie, Essen, Freunde, Geburtstag, Handy, o.ä.).${refBlock}
+Wähle ein NEUES, altersgerechtes Alltagsthema für Jugendliche aus einem breiten Themenfeld (Schule, Hobbys, Familie, Essen, Freunde, Feste, Technik, Tiere, Wohnen, Reisen, Sport, Zukunftspläne, u.ä.) — variiere bewusst das Themenfeld gegenüber vorherigen Aufgaben.${notaAntiRepeticao(['Ferien','Sport','Wochenende'])}${refBlock}
 Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
-{"thema": "ein Wort oder kurzer Begriff, z.B. 'Schule' oder 'Haustiere'", "einleitung": "zwei Sätze im Stil: '[Name] wohnt in Deutschland. Ihr schreibt euch regelmäßig E-Mails. In seiner/ihrer letzten E-Mail hat [Name] erzählt, [was er/sie erzählt hat, passend zum Thema].' (oder alternativ die Brieffreund-Variante wie im Beispiel 'Ferien')", "aufforderung": "ein Satz: 'Schreibe [Name] eine E-Mail zurück.' oder 'Beantworte [Name]s Brief.' (passend zur Einleitung)", "punkte": ["Frage/Aufforderung 1", "Frage/Aufforderung 2", "Frage/Aufforderung 3", "Frage/Aufforderung 4"]}
+{"thema": "ein Wort oder kurzer Begriff", "einleitung": "zwei Sätze im Stil: '[Name] wohnt in Deutschland. Ihr schreibt euch regelmäßig E-Mails. In seiner/ihrer letzten E-Mail hat [Name] erzählt, [was er/sie erzählt hat, passend zum Thema].' (oder alternativ die Brieffreund-Variante wie im Beispiel 'Ferien')", "aufforderung": "ein Satz: 'Schreibe [Name] eine E-Mail zurück.' oder 'Beantworte [Name]s Brief.' (passend zur Einleitung)", "punkte": ["Frage/Aufforderung 1", "Frage/Aufforderung 2", "Frage/Aufforderung 3", "Frage/Aufforderung 4"]}
 Die 4 Punkte sollen wie im echten Modellsatz sein: konkrete Fragen zum Thema, die eigene Erfahrung des Schreibers betreffen.`;
   const raw = await callGemini(prompt, 3000);
   const json = extractJson(raw);
+  registrarTemaGerado(json.thema);
   const aufgabe = `${json.thema}\n\n${json.einleitung}\n\n${json.aufforderung}\n\nSchreibe ausführlich zu diesen vier Punkten:\n\n${json.punkte.map(p=>'• '+p).join('\n')}\n\nDu hast insgesamt 45 Minuten Zeit.`;
   state.aufgabaObj = { aufgabe, quelltext:'', thema: json.thema };
   $('aufgabeTag').textContent = `${niveauLabel(state.niveau)} · ${meta.label}`;
@@ -377,21 +396,22 @@ REGELN (unbedingt einhalten):
 1. Antworte NUR mit einem einzigen JSON-Objekt. Kein Text davor oder danach. Keine Markdown-Backticks (\`\`\`).
 2. Das JSON muss GENAU diese Struktur haben, keine zusätzlichen oder fehlenden Felder:
    {"thema": string, "personen": [4 Objekte mit "name" und "aussage"], "frage_persoenlich": string, "frage_meinung": string}
-3. "thema": ein bis zwei Wörter, groß geschrieben wie ein Titel (z.B. "Handynutzung", "Ferienjobs").
+3. "thema": ein bis zwei Wörter, groß geschrieben wie ein Titel. Wähle bewusst ein anderes Themenfeld als in vorherigen Aufgaben (z.B. abwechselnd Schule, Freizeit, Familie, Umwelt, Technologie, Ernährung, Freundschaft, Zukunftspläne, Konsum, soziale Medien, Verkehr, Wohnen).
 4. "personen": genau 4 Personen, mit unterschiedlichen deutschen Vornamen (Mix aus männlich/weiblich). Jede Aussage: 2-4 Sätze, Ich-Perspektive, wie ein echter Forumspost — konkret, mit eigenem Beispiel oder Grund, nicht generisch.
 5. Die 4 Meinungen müssen sich WIRKLICH unterscheiden — mindestens 2 klar gegensätzliche Positionen, nicht 4x die gleiche Meinung mit anderen Worten.
 6. "frage_persoenlich": eine Frage nach der eigenen Erfahrung des Schreibers zum Thema, endet mit "Berichte ausführlich." (Beispiele: "Wie sieht es an deiner Schule mit X aus? Berichte ausführlich." / "Hast du X? Berichte ausführlich.")
 7. "frage_meinung": eine Bewertungsfrage (oft Ja/Nein), endet mit "Begründe deine Meinung ausführlich." (Beispiele: "Ist X sinnvoll? Begründe deine Meinung ausführlich." / "Sollte man X? Begründe deine Meinung ausführlich.")
 8. Escape alle Anführungszeichen innerhalb der Strings korrekt für JSON (\\").
-9. NEUES Thema — nicht: Musik, Hausaufgaben, Lesen, Zu-spät-Kommen, Nebenjobs, Haustiere, Gewalt im Fernsehen, Zu Hause mithelfen (schon oft benutzt).
+9. NEUES Thema — nicht: Musik, Hausaufgaben, Lesen, Zu-spät-Kommen, Nebenjobs, Haustiere, Gewalt im Fernsehen, Zu Hause mithelfen (schon oft benutzt). "Taschengeld" aus dem Formatbeispiel unten ist NUR zur Strukturreferenz — wähle es NICHT als eigenes Thema.${notaAntiRepeticao(['Musik','Hausaufgaben','Lesen','Zu-spät-Kommen','Nebenjobs','Haustiere','Gewalt im Fernsehen','Zu Hause mithelfen','Taschengeld'])}
 
-BEISPIEL für die korrekte JSON-Struktur (anderes Thema, nur zur Formatreferenz — nicht kopieren):
+BEISPIEL für die korrekte JSON-Struktur (NUR zur Formatreferenz — dieses Thema NICHT verwenden):
 {"thema": "Taschengeld", "personen": [{"name": "Finn", "aussage": "Ich bekomme jeden Monat 20 Euro Taschengeld. Das reicht mir eigentlich gut, weil ich nicht so viel kaufe. Nur für neue Fußballschuhe muss ich immer länger sparen."}, {"name": "Mia", "aussage": "Meine Eltern geben mir kein festes Taschengeld. Ich bekomme Geld, wenn ich etwas brauche, zum Beispiel für Kino oder Kleidung. Das finde ich eigentlich besser."}, {"name": "Ben", "aussage": "Ich finde, Taschengeld sollte man sich verdienen. Ich helfe im Garten meiner Oma und bekomme dafür Geld. So lerne ich, dass Geld nicht einfach so kommt."}, {"name": "Lea", "aussage": "Bei uns bekommen alle Geschwister gleich viel Taschengeld, egal wie alt sie sind. Ich finde das unfair, weil meine große Schwester viel mehr Sachen braucht als ich."}], "frage_persoenlich": "Bekommst du Taschengeld oder verdienst du dir dein Geld selbst? Berichte ausführlich.", "frage_meinung": "Sollten Kinder für Hausarbeit Taschengeld bekommen? Begründe deine Meinung ausführlich."}${refBlock}
 
 Erstelle jetzt eine neue Aufgabe nach diesen Regeln.`;
 
   const raw = await callGemini(prompt, 4000);
   const json = extractJson(raw);
+  registrarTemaGerado(json.thema);
   const quelltext = json.personen.map(p => `${p.name}: ${p.aussage}`).join('\n\n');
   const aufgabe = `${json.thema}\n\nIn einem Internetforum gibt es eine Diskussion zum Thema „${json.thema}".\nDu findest hier dazu folgende Aussagen (siehe Sprechblasen oben).\n\n${meta.forumClosing}\n\nBearbeite in deinem Beitrag die folgenden drei Punkte:\n\n• Gib alle vier Aussagen aus dem Internetforum mit eigenen Worten wieder.\n• ${json.frage_persoenlich}\n• ${json.frage_meinung}\n\nDu hast insgesamt 75 Minuten Zeit.\nDu brauchst die Wörter nicht zu zählen.`;
   state.aufgabaObj = { aufgabe, quelltext, personen: json.personen, thema: json.thema };
