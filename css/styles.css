@@ -525,8 +525,8 @@ button:focus:not(:focus-visible){
   gap:16px;flex-wrap:wrap;
 }
 .rascunho-nuvem-txt{display:flex;flex-direction:column;gap:3px;}
-.rascunho-nuvem-txt strong{font-size:0.94rem;color:var(--ink);} 
-.rascunho-nuvem-txt span{font-size:0.82rem;color:var(--ink-soft);} 
+.rascunho-nuvem-txt strong{font-size:0.94rem;color:var(--ink);}
+.rascunho-nuvem-txt span{font-size:0.82rem;color:var(--ink-soft);}
 .rascunho-nuvem-btns{display:flex;gap:8px;flex-shrink:0;}
 .rascunho-nuvem-btns button{padding:9px 16px;font-size:0.85rem;}
 
@@ -543,4 +543,3 @@ button:focus:not(:focus-visible){
 .faq-item summary::after{content:'+';font-size:1.2rem;color:var(--ink-faint);flex-shrink:0;transition:transform .15s ease;}
 .faq-item[open] summary::after{transform:rotate(45deg);}
 .faq-item p{margin:10px 0 0;font-size:0.88rem;color:var(--ink-soft);line-height:1.6;}
-
