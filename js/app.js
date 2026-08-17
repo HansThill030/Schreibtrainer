@@ -632,9 +632,162 @@ if ($('btnSenden')) $('btnSenden').addEventListener('click', async () => {
 async function runKorrektur(text){
   if (state.niveau === 'B1') {
     await runKorrekturDSD1(text);
+  } else if (state.niveau === 'A2') {
+    await runKorrekturIVA2(text);
   } else {
     await runKorrekturGenerico(text);
   }
+}
+
+/* ============================================================
+   IVA 2 (A2) — Superprompt oficial, baseado nos "Ausführungs-
+   bestimmungen für die Internationalen schulischen Vergleichs-
+   arbeiten der ZfA" (Stand 2020), Kapitel 5.2.2 "Bewertungs-
+   kriterien für die Schriftliche Kommunikation IVA 2".
+   5 Kriterien, Skala 4-3-2-1-0 pro Kriterium, max. 20 Punkte.
+   A2 nach GER gilt als erreicht ab 12 Punkten.
+   ============================================================ */
+async function runKorrekturIVA2(text){
+  const meta = currentMeta();
+  const quelltextInfo = state.aufgabaObj.quelltext ? `\nAusgangstext: ${state.aufgabaObj.quelltext}` : '';
+
+  const prompt = `Du bist eine erfahrene DaF-Lehrkraft und Prüferin für die "Internationale schulische Vergleichsarbeit 2" (IVA 2) der ZfA (Zentralstelle für das Auslandsschulwesen). Du bewertest streng nach den offiziellen Bewertungskriterien für die Schriftliche Kommunikation IVA 2 (Ausführungsbestimmungen, Stand 2020), aber stets wohlwollend und altersgerecht für Schüler/innen von 12-14 Jahren (Klassenstufe 7-8).
+
+AUFGABE: Bewerte die folgende Schülerarbeit (persönliche E-Mail, Antwort auf vier Arbeitsaufträge) nach den fünf offiziellen Kriterien.
+
+PRÜFUNGSAUFGABE:
+Aufgabentext: ${state.aufgabaObj.aufgabe}${quelltextInfo}
+
+SCHÜLERTEXT:
+"""
+${text}
+"""
+
+BEWERTUNGSKRITERIEN (jeweils 4-3-2-1-0 Punkte, max. 20 Punkte gesamt):
+
+1. TEXTAUFBAU (0-4): Bei 4 Punkten entspricht der Text vollständig der geforderten Textsorte (Anrede, Adressatenbezug, Schlussformel) und die Schreibsituation (Antwortmail) ist eindeutig klar. Bei 0 Punkten wird die Textsorte nicht beachtet, die Schreibsituation bleibt unklar. Dazwischen abgestuft.
+
+2. INHALT (0-4): Bei 4 Punkten sind alle vier Arbeitsaufträge ausführlich beantwortet. Bei 2 Punkten sind entweder alle Punkte nur kurz beantwortet, oder zwei ausführlich und zwei nur kurz. Bei 0 Punkten sind zwei oder mehr Punkte unbearbeitet. WICHTIG: Wenn das Thema völlig verfehlt wird, erhält der gesamte Teil SK 0 Punkte insgesamt (Sonderregel).
+
+3. VERFÜGBARKEIT SPRACHLICHER MITTEL (0-4): Bei 4 Punkten drückt sich der Schüler mit seinem Wortschatz (Substantive, Verben, Adjektive) angemessen zu den geforderten Punkten aus, verwendet Hauptsätze und einfache Nebensätze (weil, dass, wenn), Modalverben, Inversion, Zeit-/Ortsangaben, passende Zeitformen, Frage- und Ausrufesätze. Bei 0 Punkten sind Wortschatz und Strukturen so begrenzt, dass die Aufgabe nicht bewältigt werden kann. Kalibriere den erwarteten Wortschatz an ${wortlisteHinweis('A2')}.
+
+4. GRAMMATIK (0-4): Bei 4 Punkten verwendet der Schüler einfache grammatische Mittel überwiegend korrekt (Präsens, Perfekt, Präteritum der Hilfs-/Modalverben, Konnektoren, Artikel, Pluralbildung, Deklination, Inversion) — Fehler beeinträchtigen die Verständlichkeit nicht. Bei 0 Punkten ist der Text wegen zu vieler Fehler nur mit Mühe verständlich.
+
+5. ORTHOGRAFIE (0-4): Bei 4 Punkten schreibt der Schüler vertraute Wörter orthografisch richtig und verwendet einfache Satzzeichen korrekt. Bei 0 Punkten beeinträchtigen zahlreiche Rechtschreib-/Interpunktionsfehler die Verständlichkeit.
+
+NIVEAUEINSCHÄTZUNG: A2 nach GER gilt für die Schriftliche Kommunikation als erreicht, wenn insgesamt mindestens 12 von 20 Punkten erzielt werden.
+
+WICHTIGE GRUNDSÄTZE:
+- Wohlwollende Bewertung, altersgerecht (12-14 Jahre)
+- Jede Punktevergabe mit konkreten Textbelegen begründen
+- Bei Grenzfällen transparent erläutern
+
+Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Alle Felder auf Deutsch. Format:
+{
+  "schritt2_bewertung": {
+    "textaufbau":          {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "inhalt":              {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "sprachliche_mittel":  {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "grammatik":           {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "orthografie":         {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]}
+  },
+  "schritt3_belegsammlung": {
+    "gesamtpunkte": 0,
+    "max_punkte": 20,
+    "niveaueinschaetzung": "A2 nach GER erreicht" | "A2 nach GER noch nicht erreicht (knapp)" | "A2 nach GER noch nicht erreicht",
+    "niveaubegruendung": "..."
+  },
+  "schritt4_sprachanalyse": {
+    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Zeitform", "zeile": 0}],
+    "orthografiefehler": [{"original": "...", "zielschreibung": "...", "zeile": 0}]
+  },
+  "schritt5_feedback": {
+    "gut_gelungen": ["...", "...", "..."],
+    "verbessern": ["...", "...", "..."],
+    "naechstes_lernziel": "..."
+  },
+  "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]
+}
+"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen.`;
+
+  try {
+    const raw = await callGemini(prompt, 5500);
+    const json = extractJson(raw);
+    renderFeedbackIVA2(json);
+    const feedbackSimples = {
+      niveau_einschaetzung: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+      status: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+      erfuellung: json.schritt2_bewertung?.inhalt?.begruendung || '',
+      aufbau: json.schritt2_bewertung?.textaufbau?.begruendung || '',
+      sprache: json.schritt2_bewertung?.grammatik?.begruendung || '',
+      tipp: json.schritt5_feedback?.naechstes_lernziel || '',
+      korrekturen: (json.schritt4_sprachanalyse?.grammatikfehler || []).map(f => ({
+        original: f.original, korrektur: f.zielstruktur, erklaerung: f.kategorie
+      }))
+    };
+    await salvarHistorico(state._textoEnviado || '', feedbackSimples, json.vokabelkarten);
+  } catch(e) {
+    console.error(e);
+    $('loadingResult').style.display = 'none';
+    $('feedback').style.display = 'block';
+    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+  }
+}
+
+function renderFeedbackIVA2(json){
+  const s2 = json.schritt2_bewertung || {};
+  const s3 = json.schritt3_belegsammlung || {};
+  const s4 = json.schritt4_sprachanalyse || {};
+  const s5 = json.schritt5_feedback || {};
+
+  $('stampNiveau').textContent = s3.niveaueinschaetzung || '—';
+  $('stampTag').textContent = `${s3.gesamtpunkte ?? '?'} / ${s3.max_punkte ?? 20} Punkte`;
+
+  const kategorien = [
+    { key:'textaufbau',         label:'Textaufbau' },
+    { key:'inhalt',             label:'Inhalt' },
+    { key:'sprachliche_mittel', label:'Sprachliche Mittel' },
+    { key:'grammatik',          label:'Grammatik' },
+    { key:'orthografie',        label:'Orthografie' },
+  ];
+  let bewertungHTML = `<table class="fb-table"><thead><tr><th>Kategorie</th><th>Pkt</th><th>Begründung</th></tr></thead><tbody>`;
+  let gesamtPunkte = 0;
+  kategorien.forEach(k => {
+    const kat = s2[k.key] || {};
+    const p = kat.punkte ?? '?';
+    if (typeof p === 'number') gesamtPunkte += p;
+    const pos = (kat.belege_positiv || []).map(b => `<span class="beleg-pos">✓ ${escapeHtml(b)}</span>`).join('');
+    const neg = (kat.belege_schwach || []).map(b => `<span class="beleg-neg">✗ ${escapeHtml(b)}</span>`).join('');
+    bewertungHTML += `<tr><td class="kat-name">${k.label}</td><td class="kat-punkte">${p}/4</td><td>${escapeHtml(kat.begruendung||'')}${pos?'<br>'+pos:''}${neg?'<br>'+neg:''}</td></tr>`;
+  });
+  bewertungHTML += `<tr class="gesamt-row"><td colspan="2"><strong>Gesamt</strong></td><td><strong>${s3.gesamtpunkte ?? gesamtPunkte} / 20</strong></td></tr></tbody></table>`;
+  $('fbErfuellung').innerHTML = bewertungHTML;
+
+  $('fbAufbau').innerHTML = `<strong>${escapeHtml(s3.niveaueinschaetzung||'—')}</strong> — ${escapeHtml(s3.niveaubegruendung||'')}`;
+
+  let analyseHTML = '';
+  if ((s4.grammatikfehler||[]).length) {
+    analyseHTML += '<strong>✗ Grammatikfehler</strong><ul class="analyse-list">';
+    (s4.grammatikfehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)} (Z.${f.zeile})</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  if ((s4.orthografiefehler||[]).length) {
+    analyseHTML += '<strong>✗ Orthografiefehler</strong><ul class="analyse-list">';
+    (s4.orthografiefehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span><span class="erkl">Z.${f.zeile}</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  $('fbSprache').innerHTML = analyseHTML || '—';
+
+  const list = $('korrekturenList');
+  list.innerHTML = '';
+  (s5.gut_gelungen || []).forEach(g => { const li = document.createElement('li'); li.innerHTML = `<span class="korr">✓</span> ${escapeHtml(g)}`; list.appendChild(li); });
+  (s5.verbessern || []).forEach(v => { const li = document.createElement('li'); li.innerHTML = `<span class="orig">→</span> ${escapeHtml(v)}`; list.appendChild(li); });
+
+  $('fbTip').textContent = '🎯 Nächstes Lernziel: ' + (s5.naechstes_lernziel || '');
+  $('loadingResult').style.display = 'none';
+  $('feedback').style.display = 'block';
+  const stamp = $('stamp');
+  stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
 }
 
 /* ============================================================
@@ -738,13 +891,12 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
 async function runKorrekturGenerico(text){
   const meta = currentMeta();
   const quelltextInfo = state.aufgabaObj.quelltext ? `\nAusgangstext/Grafikbeschreibung: ${state.aufgabaObj.quelltext}` : '';
-  const nivelDesc = state.niveau === 'A2' ? 'IVA 2 (Vorbereitung auf DSD I, Niveau A2)' : 'DSD II (Niveau B2/C1)';
 
-  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte folgenden Schülertext für die Textsorte "${meta.label}" auf Zielniveau ${nivelDesc} (Schwierigkeitsgrad der Aufgabe: ${state.schwierigkeit}/8). Sei präzise und schnell, keine langen Einleitungen.
+  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte folgenden Schülertext für die Textsorte "${meta.label}" auf Zielniveau DSD II (Niveau B2/C1) (Schwierigkeitsgrad der Aufgabe: ${state.schwierigkeit}/8). Sei präzise und schnell, keine langen Einleitungen.
 
 HINWEIS: Dies ist eine vorläufige, allgemeine Korrektur (kein offizielles Bewertungsraster für dieses Prüfungsformat).
 
-Wortschatz-Kalibrierung: Bewerte den verwendeten Wortschatz auch im Vergleich zu ${wortlisteHinweis(state.niveau)} — erwähne im "sprache"-Feld, ob der Wortschatz spürbar über, unter oder genau auf diesem Niveau liegt.
+Wortschatz-Kalibrierung: Bewerte den verwendeten Wortschatz auch im Vergleich zu ${wortlisteHinweis('C1')} — erwähne im "sprache"-Feld, ob der Wortschatz spürbar über, unter oder genau auf diesem Niveau liegt.
 
 Aufgabe: ${state.aufgabaObj.aufgabe}${quelltextInfo}
 Schülertext:

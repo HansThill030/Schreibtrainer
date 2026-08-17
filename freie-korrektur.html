@@ -353,6 +353,8 @@ $('btnKorrigieren').addEventListener('click', async () => {
   try {
     if (state.niveau === 'B1') {
       await runKorrekturDSD1(aufgabenstellung, temFoto ? null : textoTyped, temFoto ? state.imagens : null);
+    } else if (state.niveau === 'A2') {
+      await runKorrekturIVA2(aufgabenstellung, temFoto ? null : textoTyped, temFoto ? state.imagens : null);
     } else {
       await runKorrekturGenerico(aufgabenstellung, temFoto ? null : textoTyped, temFoto ? state.imagens : null);
     }
@@ -466,13 +468,144 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
   await salvarHistorico(aufgabenstellung, textoTranscrito, feedbackSimples);
 }
 
+/* ============================================================
+   IVA 2 (A2) — Superprompt oficial (ZfA Ausführungsbestimmungen
+   Stand 2020, Kap. 5.2.2 "Bewertungskriterien Schriftliche
+   Kommunikation IVA 2"). 5 Kriterien, 4-3-2-1-0 pro Kriterium,
+   max. 20 Punkte, A2 gilt ab 12 Punkten als erreicht.
+   ============================================================ */
+async function runKorrekturIVA2(aufgabenstellung, textoDigitado, imagens){
+  const quelleInfo = imagens && imagens.length
+    ? `Der Schülertext liegt als ${imagens.length > 1 ? imagens.length + ' Fotos eines handschriftlichen, mehrseitigen Textes' : 'Foto eines handschriftlichen Blatts'} vor. Führe zuerst eine wortgetreue Transkription anhand des/der Fotos durch (siehe Transkriptionsregeln), bevor du bewertest.`
+    : `SCHÜLERTEXT (bereits digital erfasst):\n"""\n${textoDigitado}\n"""`;
+
+  const prompt = `Du bist eine erfahrene DaF-Lehrkraft und Prüferin für die "Internationale schulische Vergleichsarbeit 2" (IVA 2) der ZfA. Du bewertest streng nach den offiziellen Bewertungskriterien für die Schriftliche Kommunikation IVA 2, aber stets wohlwollend und altersgerecht für Schüler/innen von 12-14 Jahren.
+
+KONTEXT: Dies ist eine freie Aufgabe (z.B. aus dem Unterricht), keine automatisch generierte Aufgabe.
+Vorgegebene Aufgabenstellung/Thema: ${aufgabenstellung}
+
+${quelleInfo}
+
+${TRANSKRIPTIONSREGELN}
+
+BEWERTUNGSKRITERIEN (jeweils 4-3-2-1-0 Punkte, max. 20 Punkte gesamt):
+1. TEXTAUFBAU (0-4): 4 Punkte = Textsorte (Anrede, Adressatenbezug, Schlussformel) und Schreibsituation eindeutig klar. 0 Punkte = Textsorte nicht beachtet.
+2. INHALT (0-4): 4 Punkte = alle Arbeitsaufträge ausführlich beantwortet. 0 Punkte = zwei oder mehr Punkte unbearbeitet. Bei völlig verfehltem Thema: gesamter Teil 0 Punkte.
+3. VERFÜGBARKEIT SPRACHLICHER MITTEL (0-4): 4 Punkte = angemessener Wortschatz, Hauptsätze und einfache Nebensätze (weil, dass, wenn), Modalverben, Inversion, passende Zeitformen. 0 Punkte = Wortschatz/Strukturen reichen nicht für die Aufgabe. Kalibriere an ${wortlisteHinweis('A2')}.
+4. GRAMMATIK (0-4): 4 Punkte = einfache grammatische Mittel überwiegend korrekt (Präsens, Perfekt, Präteritum, Konnektoren, Artikel, Pluralbildung, Deklination, Inversion), Fehler beeinträchtigen Verständlichkeit nicht. 0 Punkte = Text nur mit Mühe verständlich.
+5. ORTHOGRAFIE (0-4): 4 Punkte = vertraute Wörter richtig geschrieben, einfache Satzzeichen korrekt. 0 Punkte = zahlreiche Fehler beeinträchtigen Verständlichkeit.
+
+NIVEAUEINSCHÄTZUNG: A2 nach GER gilt als erreicht ab 12 von 20 Punkten.
+
+Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Alle Felder auf Deutsch. Format:
+{
+  "schritt2_bewertung": {
+    "textaufbau":          {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "inhalt":              {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "sprachliche_mittel":  {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "grammatik":           {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "orthografie":         {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]}
+  },
+  "schritt3_belegsammlung": {
+    "gesamtpunkte": 0,
+    "max_punkte": 20,
+    "niveaueinschaetzung": "A2 nach GER erreicht" | "A2 nach GER noch nicht erreicht (knapp)" | "A2 nach GER noch nicht erreicht",
+    "niveaubegruendung": "..."
+  },
+  "schritt4_sprachanalyse": {
+    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Zeitform", "zeile": 0}],
+    "orthografiefehler": [{"original": "...", "zielschreibung": "...", "zeile": 0}]
+  },
+  "schritt5_feedback": {
+    "gut_gelungen": ["...", "...", "..."],
+    "verbessern": ["...", "...", "..."],
+    "naechstes_lernziel": "..."
+  },
+  "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]
+}
+"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen.`;
+
+  const raw = await callGemini(prompt, 5500, imagens);
+  const json = extractJson(raw);
+  renderFeedbackIVA2(json);
+
+  const feedbackSimples = {
+    niveau_einschaetzung: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+    status: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+    erfuellung: json.schritt2_bewertung?.inhalt?.begruendung || '',
+    aufbau: json.schritt2_bewertung?.textaufbau?.begruendung || '',
+    sprache: json.schritt2_bewertung?.grammatik?.begruendung || '',
+    tipp: json.schritt5_feedback?.naechstes_lernziel || '',
+    korrekturen: (json.schritt4_sprachanalyse?.grammatikfehler || []).map(f => ({
+      original: f.original, korrektur: f.zielstruktur, erklaerung: f.kategorie
+    })),
+    vokabelkarten: json.vokabelkarten || []
+  };
+  await salvarHistorico(aufgabenstellung, textoDigitado || '[Foto eingereicht]', feedbackSimples);
+}
+
+function renderFeedbackIVA2(json){
+  const s2 = json.schritt2_bewertung || {};
+  const s3 = json.schritt3_belegsammlung || {};
+  const s4 = json.schritt4_sprachanalyse || {};
+  const s5 = json.schritt5_feedback || {};
+
+  $('stampNiveau').textContent = s3.niveaueinschaetzung || '—';
+  $('stampTag').textContent = `${s3.gesamtpunkte ?? '?'} / ${s3.max_punkte ?? 20} Punkte`;
+
+  const kategorien = [
+    { key:'textaufbau',         label:'Textaufbau' },
+    { key:'inhalt',             label:'Inhalt' },
+    { key:'sprachliche_mittel', label:'Sprachliche Mittel' },
+    { key:'grammatik',          label:'Grammatik' },
+    { key:'orthografie',        label:'Orthografie' },
+  ];
+  let bewertungHTML = `<table class="fb-table"><thead><tr><th>Kategorie</th><th>Pkt</th><th>Begründung</th></tr></thead><tbody>`;
+  let gesamtPunkte = 0;
+  kategorien.forEach(k => {
+    const kat = s2[k.key] || {};
+    const p = kat.punkte ?? '?';
+    if (typeof p === 'number') gesamtPunkte += p;
+    const pos = (kat.belege_positiv || []).map(b => `<span class="beleg-pos">✓ ${escapeHtml(b)}</span>`).join('');
+    const neg = (kat.belege_schwach || []).map(b => `<span class="beleg-neg">✗ ${escapeHtml(b)}</span>`).join('');
+    bewertungHTML += `<tr><td class="kat-name">${k.label}</td><td class="kat-punkte">${p}/4</td><td>${escapeHtml(kat.begruendung||'')}${pos?'<br>'+pos:''}${neg?'<br>'+neg:''}</td></tr>`;
+  });
+  bewertungHTML += `<tr class="gesamt-row"><td colspan="2"><strong>Gesamt</strong></td><td><strong>${s3.gesamtpunkte ?? gesamtPunkte} / 20</strong></td></tr></tbody></table>`;
+  $('fbErfuellung').innerHTML = bewertungHTML;
+
+  $('fbAufbau').innerHTML = `<strong>${escapeHtml(s3.niveaueinschaetzung||'—')}</strong> — ${escapeHtml(s3.niveaubegruendung||'')}`;
+
+  let analyseHTML = '';
+  if ((s4.grammatikfehler||[]).length) {
+    analyseHTML += '<strong>✗ Grammatikfehler</strong><ul class="analyse-list">';
+    (s4.grammatikfehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)} (Z.${f.zeile})</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  if ((s4.orthografiefehler||[]).length) {
+    analyseHTML += '<strong>✗ Orthografiefehler</strong><ul class="analyse-list">';
+    (s4.orthografiefehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span><span class="erkl">Z.${f.zeile}</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  $('fbSprache').innerHTML = analyseHTML || '—';
+
+  const list = $('korrekturenList');
+  list.innerHTML = '';
+  (s5.gut_gelungen || []).forEach(g => { const li = document.createElement('li'); li.innerHTML = `<span class="korr">✓</span> ${escapeHtml(g)}`; list.appendChild(li); });
+  (s5.verbessern || []).forEach(v => { const li = document.createElement('li'); li.innerHTML = `<span class="orig">→</span> ${escapeHtml(v)}`; list.appendChild(li); });
+
+  $('fbTip').textContent = '🎯 Nächstes Lernziel: ' + (s5.naechstes_lernziel || '');
+  $('loadingResult').style.display = 'none';
+  $('feedback').style.display = 'block';
+  const stamp = $('stamp');
+  stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
+}
+
 async function runKorrekturGenerico(aufgabenstellung, textoDigitado, imagens){
-  const nivelDesc = state.niveau === 'A2' ? 'IVA 2 (Vorbereitung auf DSD I, Niveau A2)' : 'DSD II (Niveau B2/C1)';
   const quelleInfo = imagens && imagens.length
     ? `Der Schülertext liegt als ${imagens.length > 1 ? imagens.length + ' Fotos eines handschriftlichen, mehrseitigen Textes' : 'Foto eines handschriftlichen Blatts'} vor. Transkribiere zuerst wortgetreu (siehe Transkriptionsregeln), bevor du bewertest.`
     : `SCHÜLERTEXT (bereits digital erfasst):\n"""\n${textoDigitado}\n"""`;
 
-  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte den folgenden Schülertext auf Zielniveau ${nivelDesc}. Sei präzise und schnell, keine langen Einleitungen.
+  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte den folgenden Schülertext auf Zielniveau DSD II (Niveau B2/C1). Sei präzise und schnell, keine langen Einleitungen.
 
 HINWEIS: Dies ist eine vorläufige, allgemeine Korrektur (kein offizielles Bewertungsraster für dieses Prüfungsformat). Dies ist außerdem eine freie Aufgabe aus dem Unterricht, keine automatisch generierte Aufgabe.
 
