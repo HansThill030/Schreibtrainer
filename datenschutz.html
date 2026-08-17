@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datenschutz — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.legal-content{max-width:720px;line-height:1.7;font-size:0.94rem;color:var(--ink-soft);}
+.legal-content h2{color:var(--ink);font-size:1.1rem;margin:32px 0 10px;}
+.legal-content h2:first-child{margin-top:0;}
+.legal-content ul{padding-left:20px;}
+.legal-disclaimer{
+  background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--warn);
+  border-radius:var(--r-sm);padding:14px 16px;margin-bottom:32px;font-size:0.82rem;color:var(--ink-soft);
+}
+</style>
+</head>
+<body>
+<div class="wrap" role="main">
+  <div class="masthead">
+    <a class="brand" href="/">
+      <img src="assets/mark.png" alt="Sprachio" width="53" height="60">
+      <span><span class="name">SPRACHIO</span></span>
+    </a>
+    <div class="header-actions"><a class="home-link" href="/trainer-hub">← Hub</a></div>
+  </div>
+
+  <h2 class="screen-title" style="margin-bottom:20px;">Datenschutzerklärung</h2>
+
+  <div class="legal-disclaimer">
+    ⚠️ Dieses Dokument ist eine allgemeine Vorlage und ersetzt keine rechtliche Beratung. Für eine rechtssichere Datenschutzerklärung (insb. bei Nutzung durch Schüler/innen in der EU) empfiehlt sich die Prüfung durch eine Rechtsanwältin/einen Rechtsanwalt.
+  </div>
+
+  <div class="legal-content">
+    <h2>1. Verantwortlicher</h2>
+    <p>Verantwortlich für die Datenverarbeitung auf dieser Website ist der Betreiber von Sprachio (Kontaktdaten auf Anfrage über die Startseite).</p>
+
+    <h2>2. Welche Daten werden verarbeitet?</h2>
+    <ul>
+      <li><strong>Kontodaten:</strong> E-Mail-Adresse, Anmeldezeitpunkt (via Supabase Auth, ggf. Google-Login).</li>
+      <li><strong>Nutzungsinhalte:</strong> von dir eingereichte Texte, hochgeladene Fotos (zur Korrektur), generierte Aufgaben, Korrekturergebnisse, Vokabelkarten.</li>
+      <li><strong>Klassendaten (falls zutreffend):</strong> Zugehörigkeit zu einer Klasse (Lehrer-Modus), sichtbar für die jeweilige Lehrkraft.</li>
+      <li><strong>Nutzungsstatistiken:</strong> anonymisierte/pseudonymisierte Analyse-Daten via Google Analytics (nur mit deiner Zustimmung, siehe Cookie-Banner).</li>
+    </ul>
+
+    <h2>3. Wozu werden die Daten verwendet?</h2>
+    <ul>
+      <li>Bereitstellung des Schreibtrainings und der KI-Korrektur (Texte und Fotos werden zur Analyse an Google Gemini übermittelt).</li>
+      <li>Speicherung deines Lernfortschritts und deiner Vokabelkarten.</li>
+      <li>Falls du einer Klasse beitrittst: Freigabe deines Fortschritts für die zuständige Lehrkraft.</li>
+      <li>Verbesserung der Plattform (nur mit Analytics-Zustimmung).</li>
+    </ul>
+
+    <h2>4. Weitergabe an Dritte</h2>
+    <p>Zur Bereitstellung des Dienstes werden Daten an folgende Dienstleister übermittelt:</p>
+    <ul>
+      <li><strong>Supabase</strong> (Datenbank, Authentifizierung, Hosting der Backend-Logik)</li>
+      <li><strong>Google Gemini API</strong> (KI-Analyse von Texten und Fotos)</li>
+      <li><strong>Google Analytics</strong> (nur mit Zustimmung)</li>
+      <li><strong>Vercel</strong> (Hosting der Website)</li>
+    </ul>
+
+    <h2>5. Speicherdauer</h2>
+    <p>Deine Daten werden gespeichert, solange dein Konto besteht. Du kannst jederzeit die Löschung deines Kontos und deiner Daten anfragen.</p>
+
+    <h2>6. Deine Rechte</h2>
+    <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung und Einschränkung der Verarbeitung deiner Daten sowie auf Datenübertragbarkeit, gemäß den Artikeln 15–20 DSGVO. Wende dich hierfür an den Betreiber der Plattform.</p>
+
+    <h2>7. Cookies</h2>
+    <p>Analyse-Cookies (Google Analytics) werden nur nach deiner ausdrücklichen Zustimmung über das Cookie-Banner gesetzt. Technisch notwendige Daten (z.B. Anmeldestatus) werden über Local Storage/Session Storage verwaltet.</p>
+
+    <h2>8. Minderjährige Nutzer/innen</h2>
+    <p>Sprachio richtet sich auch an Schüler/innen unter 16 Jahren im schulischen Kontext (z.B. IVA 2). Die Nutzung erfolgt in der Regel im Rahmen des Unterrichts unter Aufsicht einer Lehrkraft. Eltern/Erziehungsberechtigte können sich bei Fragen an die jeweilige Schule wenden.</p>
+  </div>
+
+  <div style="margin-top:40px;"><a class="home-link" href="/nutzungsbedingungen">→ Nutzungsbedingungen</a></div>
+</div>
+<script src="js/config.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

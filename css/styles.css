@@ -6,7 +6,7 @@
   --ink:#1e1b4b;
   --ink-soft:#5b5786;
   --ink-faint:#6f6c96;
-  --line:#e6e3f4;
+  --line:#c2b8e0;
   --indigo:#5e60e4;
   --purple:#a855f7;
   --accent:#6d28d9;
@@ -43,8 +43,13 @@
 :root[data-theme="dark"] .modus-tab.active,
 :root[data-theme="dark"] .filter-btn.active,
 :root[data-theme="dark"] button.primary,
-:root[data-theme="dark"] .auth-btn{
+:root[data-theme="dark"] .auth-btn,
+:root[data-theme="dark"] .tile.tile-primary .tile-title,
+:root[data-theme="dark"] .tile.tile-primary .tile-desc{
   color:#15131f;
+}
+:root[data-theme="dark"] .tile.tile-primary .tile-desc{
+  opacity:0.75;
 }
 body{transition:background-color .2s ease, color .2s ease;}
 
@@ -483,3 +488,58 @@ textarea::placeholder{color:var(--ink-faint);}
   background:var(--card);border:1px solid var(--line);border-radius:var(--r);
   padding:20px 22px;margin-top:4px;white-space:pre-wrap;font-size:0.9rem;line-height:1.65;color:var(--ink-soft);
 }
+
+/* Cookie consent banner */
+#cookieBanner{
+  position:fixed;bottom:0;left:0;right:0;z-index:200;
+  background:var(--card);border-top:1px solid var(--line);
+  box-shadow:0 -4px 16px rgba(30,27,75,0.1);
+}
+.cookie-banner-inner{
+  max-width:880px;margin:0 auto;padding:16px 20px;
+  display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+}
+.cookie-banner-inner p{margin:0;font-size:0.85rem;color:var(--ink-soft);flex:1;min-width:220px;}
+.cookie-banner-btns{display:flex;gap:8px;flex-shrink:0;}
+.cookie-banner-btns button{padding:9px 16px;font-size:0.82rem;}
+
+/* Acessibilidade: foco de teclado visível em toda a interface */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible{
+  outline:2px solid var(--indigo);
+  outline-offset:2px;
+}
+/* Remove o outline padrão do navegador só quando NÃO for navegação por teclado */
+a:focus:not(:focus-visible),
+button:focus:not(:focus-visible){
+  outline:none;
+}
+
+/* Aviso de rascunho salvo na nuvem */
+.rascunho-nuvem-card{
+  background:var(--card);border:1px solid var(--indigo);border-radius:var(--r);
+  padding:16px 20px;display:flex;justify-content:space-between;align-items:center;
+  gap:16px;flex-wrap:wrap;
+}
+.rascunho-nuvem-txt{display:flex;flex-direction:column;gap:3px;}
+.rascunho-nuvem-txt strong{font-size:0.94rem;color:var(--ink);}
+.rascunho-nuvem-txt span{font-size:0.82rem;color:var(--ink-soft);}
+.rascunho-nuvem-btns{display:flex;gap:8px;flex-shrink:0;}
+.rascunho-nuvem-btns button{padding:9px 16px;font-size:0.85rem;}
+
+/* FAQ section (SEO/AEO — pergunta-resposta extraível) */
+.faq-section{margin:56px 0 24px;border-top:1px solid var(--line);padding-top:32px;}
+.faq-item{
+  border-bottom:1px solid var(--line);padding:14px 0;
+}
+.faq-item summary{
+  cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:0.98rem;
+  color:var(--ink);list-style:none;display:flex;justify-content:space-between;align-items:center;gap:12px;
+}
+.faq-item summary::-webkit-details-marker{display:none;}
+.faq-item summary::after{content:'+';font-size:1.2rem;color:var(--ink-faint);flex-shrink:0;transition:transform .15s ease;}
+.faq-item[open] summary::after{transform:rotate(45deg);}
+.faq-item p{margin:10px 0 0;font-size:0.88rem;color:var(--ink-soft);line-height:1.6;}

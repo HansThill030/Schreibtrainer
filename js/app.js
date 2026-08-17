@@ -27,6 +27,29 @@ const $ = id => document.getElementById(id);
 function currentMeta(){ return TEXTSORTEN[state.niveau].find(t => t.key === state.tipoKey); }
 function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
 
+/* Traduz erros técnicos em mensagens compreensíveis pro usuário */
+function mensagemErroAmigavel(e){
+  const msg = (e?.message || String(e) || '').toLowerCase();
+  if (msg.includes('tageslimit')) return '⏳ Tageslimit erreicht. Bitte versuche es morgen erneut.';
+  if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network')) return '📡 Verbindungsproblem. Prüfe deine Internetverbindung und versuche es erneut.';
+  if (msg.includes('timeout') || msg.includes('timed out')) return '⏱️ Die Anfrage hat zu lange gedauert (evtl. Foto zu groß oder Server überlastet). Bitte versuche es erneut oder mit einem kleineren Foto.';
+  if (msg.includes('json') || msg.includes('unexpected token')) return '⚠️ Die KI-Antwort konnte nicht verarbeitet werden. Bitte versuche es nochmal.';
+  if (msg.includes('502') || msg.includes('503') || msg.includes('gemini request failed')) return '🔧 Der KI-Dienst ist gerade überlastet. Bitte in ein paar Minuten erneut versuchen.';
+  return '❌ Fehler bei der Korrektur. Bitte nochmal versuchen.';
+}
+
+/* Referência de vocabulário oficial (Goethe-Institut Wortliste / GER) por nível —
+   usado tanto na geração de tarefas quanto na correção, pra calibrar dificuldade
+   de forma consistente com um padrão reconhecido, sem reproduzir a lista em si. */
+function wortlisteHinweis(niveau){
+  const map = {
+    A2: 'der Goethe-Institut A2-Wortliste (GER-Niveau A2)',
+    B1: 'der Goethe-Institut B1-Wortliste (GER-Niveau B1)',
+    C1: 'den Goethe-Institut B2- und C1-Wortlisten (GER-Niveau B2/C1)'
+  };
+  return map[niveau] || 'dem entsprechenden GER-Niveau';
+}
+
 
 /* ---------- Supabase ---------- */
 const SUPABASE_URL = window.SCHREIBTRAINER_CONFIG?.SUPABASE_URL || "";
@@ -138,11 +161,14 @@ async function callGemini(userPrompt, maxTokens, images){
     headers: {
       "Content-Type": "application/json",
       "apikey": SUPABASE_KEY,
-      "Authorization": "Bearer " + SUPABASE_KEY
+      "Authorization": "Bearer " + (_session?.access_token || SUPABASE_KEY)
     },
     body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 429 || data.limitReached) {
+    throw new Error('Tageslimit erreicht. Bitte versuche es morgen erneut.');
+  }
   if (!response.ok) {
     const detail = data?.error || data?.details || `HTTP ${response.status}`;
     throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
@@ -281,7 +307,8 @@ async function gerarGenerico(meta){
     ? '\n\nWichtig: Bei DSD II ist die Aufgabe für B2 und C1 identisch — nur die erreichte Punktzahl in der Prüfung entscheidet, welches Niveau am Ende verliehen wird. Erstelle also eine reguläre DSD-II-Aufgabe; der Schwierigkeitsgrad-Regler darf das Thema/den Wortschatz trotzdem leicht anspruchsvoller oder zugänglicher gestalten.'
     : '';
   const prompt = `Du bist Experte für die Erstellung von Prüfungsaufgaben des Deutschen Sprachdiploms (DSD). Erstelle ${meta.promptDesc}
-Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${niveauLabel(state.niveau)}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).${dsdHinweis}${refBlock}
+Schwierigkeitsgrad: ${state.schwierigkeit}/8 (1 = einfachste Umsetzung innerhalb des Niveaus ${niveauLabel(state.niveau)}, 8 = anspruchsvollste Umsetzung, nah am nächsthöheren Niveau).
+Wortschatz: Kalibriere Thema und Formulierungen am Wortschatzniveau ${wortlisteHinweis(state.niveau)} — nicht künstlich vereinfacht, aber auch nicht spürbar darüber.${dsdHinweis}${refBlock}
 Erfinde ein NEUES, noch nicht verwendetes Thema. Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
 {"aufgabe": "vollständiger Aufgabentext auf Deutsch inkl. Situation/Kontext, nummerierter/aufgezählter Punkte und Bearbeitungszeit", "quelltext": "Ausgangstext oder Grafikbeschreibung falls zutreffend, sonst leerer String"}`;
   const raw = await callGemini(prompt, 4000);
@@ -305,6 +332,7 @@ async function gerarA2Email(meta){
     $('refNote').textContent = 'Kein passender Modellsatz im Banco gespeichert — Aufgabe wird nach allgemeinem Muster generiert.';
   }
   const prompt = `Du bist Experte für die Erstellung von DSD-I-Prüfungsaufgaben (Deutsches Sprachdiplom) auf A2-Niveau, Schwierigkeitsgrad ${state.schwierigkeit}/8 (1 = ganz einfaches, konkretes Alltagsthema, 8 = etwas anspruchsvolleres Thema mit mehr Wortschatz, aber immer noch A2-passend).
+Wortschatz: Bleib strikt im Rahmen ${wortlisteHinweis('A2')} — einfache, hochfrequente Alltagswörter, kurze Sätze, keine komplexen Nebensatzkonstruktionen.
 Wähle ein NEUES, altersgerechtes Alltagsthema für Jugendliche (nicht Ferien, Sport oder Wochenende, das ist schon oft benutzt worden — such etwas anderes, z.B. Schule, Haustiere, Hobbys, Familie, Essen, Freunde, Geburtstag, Handy, o.ä.).${refBlock}
 Antworte NUR mit einem JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Format:
 {"thema": "ein Wort oder kurzer Begriff, z.B. 'Schule' oder 'Haustiere'", "einleitung": "zwei Sätze im Stil: '[Name] wohnt in Deutschland. Ihr schreibt euch regelmäßig E-Mails. In seiner/ihrer letzten E-Mail hat [Name] erzählt, [was er/sie erzählt hat, passend zum Thema].' (oder alternativ die Brieffreund-Variante wie im Beispiel 'Ferien')", "aufforderung": "ein Satz: 'Schreibe [Name] eine E-Mail zurück.' oder 'Beantworte [Name]s Brief.' (passend zur Einleitung)", "punkte": ["Frage/Aufforderung 1", "Frage/Aufforderung 2", "Frage/Aufforderung 3", "Frage/Aufforderung 4"]}
@@ -343,6 +371,7 @@ async function gerarB1Forum(meta){
 AUFGABE: Erstelle die variablen Teile für eine neue Aufgabe im exakt gleichen Format wie die echten Modellsätze.
 
 SCHWIERIGKEITSGRAD ${state.schwierigkeit}/8: ${schwierigkeitsHinweis}
+Wortschatz-Referenz: ${wortlisteHinweis('B1')} — auch beim anspruchsvollsten Schwierigkeitsgrad nicht darüber hinausgehen.
 
 REGELN (unbedingt einhalten):
 1. Antworte NUR mit einem einzigen JSON-Objekt. Kein Text davor oder danach. Keine Markdown-Backticks (\`\`\`).
@@ -474,6 +503,7 @@ if ($('btnToSchreibenReal')) {
     goToPage('schreiben');
     iniciarCronometro();
     restaurarRascunho();
+    iniciarSalvamentoNuvemPeriodico();
   });
 }
 
@@ -538,6 +568,7 @@ if ($('btnToSchreiben')) $('btnToSchreiben').addEventListener('click', () => {
   goToPage('schreiben');
   iniciarCronometro();
   restaurarRascunho();
+  iniciarSalvamentoNuvemPeriodico();
 });
 
 /* ---------- Page: schreiben ---------- */
@@ -589,6 +620,115 @@ function mostrarAvisoRascunho(){
   setTimeout(() => aviso.remove(), 4000);
 }
 
+/* ---------- Rascunho na nuvem (retomar de qualquer dispositivo, com cronômetro pausado) ---------- */
+let cloudDraftInterval = null;
+
+async function salvarRascunhoNuvem(){
+  if (!_session?.user?.id) return;
+  const texto = $('textInput')?.value || '';
+  if (!texto.trim() || !state.aufgabaObj) return;
+  try {
+    await sbFetch('rascunhos', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({
+        user_id: _session.user.id,
+        niveau: state.niveau,
+        tipo_key: state.tipoKey,
+        schwierigkeit: state.schwierigkeit,
+        aufgaba_obj: state.aufgabaObj,
+        texto,
+        segundos_restantes: timerSeconds,
+        atualizado_em: new Date().toISOString()
+      })
+    });
+  } catch(e) { console.warn('Rascunho na nuvem não salvo:', e); }
+}
+
+async function apagarRascunhoNuvem(){
+  if (!_session?.user?.id) return;
+  try {
+    await sbFetch(`rascunhos?user_id=eq.${_session.user.id}`, { method: 'DELETE' });
+  } catch(e) { /* ignora */ }
+}
+
+function iniciarSalvamentoNuvemPeriodico(){
+  clearInterval(cloudDraftInterval);
+  cloudDraftInterval = setInterval(salvarRascunhoNuvem, 20000); // a cada 20s
+  document.addEventListener('visibilitychange', salvarAoTrocarAba);
+}
+
+function pararSalvamentoNuvemPeriodico(){
+  clearInterval(cloudDraftInterval);
+  document.removeEventListener('visibilitychange', salvarAoTrocarAba);
+}
+
+function salvarAoTrocarAba(){
+  // Dispara quando o usuário troca de aba, minimiza ou fecha — mais confiável que só o intervalo
+  if (document.visibilityState === 'hidden') salvarRascunhoNuvem();
+}
+
+async function verificarRascunhoNuvem(){
+  if (!_session?.user?.id) return null;
+  try {
+    const res = await sbFetch(`rascunhos?user_id=eq.${_session.user.id}&select=*&limit=1`);
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length ? rows[0] : null;
+  } catch(e) { return null; }
+}
+
+function renderAvisoRascunhoNuvem(rascunho){
+  const box = $('rascunhoNuvemBox');
+  if (!box) return;
+  if (!rascunho) { box.style.display = 'none'; return; }
+
+  const tema = rascunho.aufgaba_obj?.thema || (rascunho.aufgaba_obj?.aufgabe || '').slice(0, 60) || '—';
+  const minutosAtras = Math.max(0, Math.round((Date.now() - new Date(rascunho.atualizado_em).getTime()) / 60000));
+  const tempoTexto = minutosAtras < 60 ? `vor ${minutosAtras} Min.` : `vor ${Math.round(minutosAtras/60)} Std.`;
+
+  box.style.display = 'block';
+  box.innerHTML = `
+    <div class="rascunho-nuvem-card">
+      <div class="rascunho-nuvem-txt">
+        <strong>📝 Unfertiger Text gefunden</strong>
+        <span>${escapeHtml(niveauLabel(rascunho.niveau))} · ${escapeHtml(tema)} · ${tempoTexto}</span>
+      </div>
+      <div class="rascunho-nuvem-btns">
+        <button class="ghost" id="btnDescartarRascunho">Verwerfen</button>
+        <button class="primary" id="btnFortsetzenRascunho">Fortsetzen →</button>
+      </div>
+    </div>`;
+
+  $('btnFortsetzenRascunho').addEventListener('click', () => retomarRascunhoNuvem(rascunho));
+  $('btnDescartarRascunho').addEventListener('click', async () => {
+    await apagarRascunhoNuvem();
+    box.style.display = 'none';
+  });
+}
+
+function retomarRascunhoNuvem(rascunho){
+  state.niveau = rascunho.niveau;
+  state.tipoKey = rascunho.tipo_key;
+  state.schwierigkeit = rascunho.schwierigkeit || 4;
+  state.aufgabaObj = rascunho.aufgaba_obj;
+
+  renderNiveauRow();
+  renderTeileRow();
+  if ($('diffSlider')) { $('diffSlider').value = state.schwierigkeit; $('diffVal').textContent = state.schwierigkeit; }
+
+  aufgabeVisivel = true;
+  renderAufgabeInline();
+  $('textInput').value = rascunho.texto || '';
+  updateWordCount();
+
+  state.maxPage = Math.max(state.maxPage, 2);
+  goToPage('schreiben');
+  iniciarCronometro(rascunho.segundos_restantes);
+  iniciarSalvamentoNuvemPeriodico();
+
+  if ($('rascunhoNuvemBox')) $('rascunhoNuvemBox').style.display = 'none';
+}
+
 function updateWordCount(){
   const text = $('textInput').value.trim();
   const count = text ? text.split(/\s+/).length : 0;
@@ -599,12 +739,14 @@ if ($('textInput')) $('textInput').addEventListener('input', () => {
   clearTimeout(draftSaveTimer);
   draftSaveTimer = setTimeout(salvarRascunho, 800);
 });
-if ($('btnBackToAufgabe')) $('btnBackToAufgabe').addEventListener('click', () => goToPage('aufgabe'));
+if ($('btnBackToAufgabe')) $('btnBackToAufgabe').addEventListener('click', () => { pararSalvamentoNuvemPeriodico(); goToPage('aufgabe'); });
 if ($('btnSenden')) $('btnSenden').addEventListener('click', async () => {
   const text = $('textInput').value.trim();
   if (!text) return;
   pararCronometro();
   limparRascunho();
+  pararSalvamentoNuvemPeriodico();
+  apagarRascunhoNuvem();
   state._textoEnviado = text;
   state.maxPage = Math.max(state.maxPage, 3);
   goToPage('korrektur');
@@ -617,9 +759,162 @@ if ($('btnSenden')) $('btnSenden').addEventListener('click', async () => {
 async function runKorrektur(text){
   if (state.niveau === 'B1') {
     await runKorrekturDSD1(text);
+  } else if (state.niveau === 'A2') {
+    await runKorrekturIVA2(text);
   } else {
     await runKorrekturGenerico(text);
   }
+}
+
+/* ============================================================
+   IVA 2 (A2) — Superprompt oficial, baseado nos "Ausführungs-
+   bestimmungen für die Internationalen schulischen Vergleichs-
+   arbeiten der ZfA" (Stand 2020), Kapitel 5.2.2 "Bewertungs-
+   kriterien für die Schriftliche Kommunikation IVA 2".
+   5 Kriterien, Skala 4-3-2-1-0 pro Kriterium, max. 20 Punkte.
+   A2 nach GER gilt als erreicht ab 12 Punkten.
+   ============================================================ */
+async function runKorrekturIVA2(text){
+  const meta = currentMeta();
+  const quelltextInfo = state.aufgabaObj.quelltext ? `\nAusgangstext: ${state.aufgabaObj.quelltext}` : '';
+
+  const prompt = `Du bist eine erfahrene DaF-Lehrkraft und Prüferin für die "Internationale schulische Vergleichsarbeit 2" (IVA 2) der ZfA (Zentralstelle für das Auslandsschulwesen). Du bewertest streng nach den offiziellen Bewertungskriterien für die Schriftliche Kommunikation IVA 2 (Ausführungsbestimmungen, Stand 2020), aber stets wohlwollend und altersgerecht für Schüler/innen von 12-14 Jahren (Klassenstufe 7-8).
+
+AUFGABE: Bewerte die folgende Schülerarbeit (persönliche E-Mail, Antwort auf vier Arbeitsaufträge) nach den fünf offiziellen Kriterien.
+
+PRÜFUNGSAUFGABE:
+Aufgabentext: ${state.aufgabaObj.aufgabe}${quelltextInfo}
+
+SCHÜLERTEXT:
+"""
+${text}
+"""
+
+BEWERTUNGSKRITERIEN (jeweils 4-3-2-1-0 Punkte, max. 20 Punkte gesamt):
+
+1. TEXTAUFBAU (0-4): Bei 4 Punkten entspricht der Text vollständig der geforderten Textsorte (Anrede, Adressatenbezug, Schlussformel) und die Schreibsituation (Antwortmail) ist eindeutig klar. Bei 0 Punkten wird die Textsorte nicht beachtet, die Schreibsituation bleibt unklar. Dazwischen abgestuft.
+
+2. INHALT (0-4): Bei 4 Punkten sind alle vier Arbeitsaufträge ausführlich beantwortet. Bei 2 Punkten sind entweder alle Punkte nur kurz beantwortet, oder zwei ausführlich und zwei nur kurz. Bei 0 Punkten sind zwei oder mehr Punkte unbearbeitet. WICHTIG: Wenn das Thema völlig verfehlt wird, erhält der gesamte Teil SK 0 Punkte insgesamt (Sonderregel).
+
+3. VERFÜGBARKEIT SPRACHLICHER MITTEL (0-4): Bei 4 Punkten drückt sich der Schüler mit seinem Wortschatz (Substantive, Verben, Adjektive) angemessen zu den geforderten Punkten aus, verwendet Hauptsätze und einfache Nebensätze (weil, dass, wenn), Modalverben, Inversion, Zeit-/Ortsangaben, passende Zeitformen, Frage- und Ausrufesätze. Bei 0 Punkten sind Wortschatz und Strukturen so begrenzt, dass die Aufgabe nicht bewältigt werden kann. Kalibriere den erwarteten Wortschatz an ${wortlisteHinweis('A2')}.
+
+4. GRAMMATIK (0-4): Bei 4 Punkten verwendet der Schüler einfache grammatische Mittel überwiegend korrekt (Präsens, Perfekt, Präteritum der Hilfs-/Modalverben, Konnektoren, Artikel, Pluralbildung, Deklination, Inversion) — Fehler beeinträchtigen die Verständlichkeit nicht. Bei 0 Punkten ist der Text wegen zu vieler Fehler nur mit Mühe verständlich.
+
+5. ORTHOGRAFIE (0-4): Bei 4 Punkten schreibt der Schüler vertraute Wörter orthografisch richtig und verwendet einfache Satzzeichen korrekt. Bei 0 Punkten beeinträchtigen zahlreiche Rechtschreib-/Interpunktionsfehler die Verständlichkeit.
+
+NIVEAUEINSCHÄTZUNG: A2 nach GER gilt für die Schriftliche Kommunikation als erreicht, wenn insgesamt mindestens 12 von 20 Punkten erzielt werden.
+
+WICHTIGE GRUNDSÄTZE:
+- Wohlwollende Bewertung, altersgerecht (12-14 Jahre)
+- Jede Punktevergabe mit konkreten Textbelegen begründen
+- Bei Grenzfällen transparent erläutern
+
+Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Alle Felder auf Deutsch. Format:
+{
+  "schritt2_bewertung": {
+    "textaufbau":          {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "inhalt":              {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "sprachliche_mittel":  {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "grammatik":           {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]},
+    "orthografie":         {"punkte": 0, "begruendung": "...", "belege_positiv": ["..."], "belege_schwach": ["..."]}
+  },
+  "schritt3_belegsammlung": {
+    "gesamtpunkte": 0,
+    "max_punkte": 20,
+    "niveaueinschaetzung": "A2 nach GER erreicht" | "A2 nach GER noch nicht erreicht (knapp)" | "A2 nach GER noch nicht erreicht",
+    "niveaubegruendung": "..."
+  },
+  "schritt4_sprachanalyse": {
+    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Zeitform", "zeile": 0}],
+    "orthografiefehler": [{"original": "...", "zielschreibung": "...", "zeile": 0}]
+  },
+  "schritt5_feedback": {
+    "gut_gelungen": ["...", "...", "..."],
+    "verbessern": ["...", "...", "..."],
+    "naechstes_lernziel": "..."
+  },
+  "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]
+}
+"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen.`;
+
+  try {
+    const raw = await callGemini(prompt, 5500);
+    const json = extractJson(raw);
+    renderFeedbackIVA2(json);
+    const feedbackSimples = {
+      niveau_einschaetzung: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+      status: json.schritt3_belegsammlung?.niveaueinschaetzung || '—',
+      erfuellung: json.schritt2_bewertung?.inhalt?.begruendung || '',
+      aufbau: json.schritt2_bewertung?.textaufbau?.begruendung || '',
+      sprache: json.schritt2_bewertung?.grammatik?.begruendung || '',
+      tipp: json.schritt5_feedback?.naechstes_lernziel || '',
+      korrekturen: (json.schritt4_sprachanalyse?.grammatikfehler || []).map(f => ({
+        original: f.original, korrektur: f.zielstruktur, erklaerung: f.kategorie
+      }))
+    };
+    await salvarHistorico(state._textoEnviado || '', feedbackSimples, json.vokabelkarten);
+  } catch(e) {
+    console.error(e);
+    $('loadingResult').style.display = 'none';
+    $('feedback').style.display = 'block';
+    $('fbErfuellung').textContent = mensagemErroAmigavel(e);
+  }
+}
+
+function renderFeedbackIVA2(json){
+  const s2 = json.schritt2_bewertung || {};
+  const s3 = json.schritt3_belegsammlung || {};
+  const s4 = json.schritt4_sprachanalyse || {};
+  const s5 = json.schritt5_feedback || {};
+
+  $('stampNiveau').textContent = s3.niveaueinschaetzung || '—';
+  $('stampTag').textContent = `${s3.gesamtpunkte ?? '?'} / ${s3.max_punkte ?? 20} Punkte`;
+
+  const kategorien = [
+    { key:'textaufbau',         label:'Textaufbau' },
+    { key:'inhalt',             label:'Inhalt' },
+    { key:'sprachliche_mittel', label:'Sprachliche Mittel' },
+    { key:'grammatik',          label:'Grammatik' },
+    { key:'orthografie',        label:'Orthografie' },
+  ];
+  let bewertungHTML = `<table class="fb-table"><thead><tr><th>Kategorie</th><th>Pkt</th><th>Begründung</th></tr></thead><tbody>`;
+  let gesamtPunkte = 0;
+  kategorien.forEach(k => {
+    const kat = s2[k.key] || {};
+    const p = kat.punkte ?? '?';
+    if (typeof p === 'number') gesamtPunkte += p;
+    const pos = (kat.belege_positiv || []).map(b => `<span class="beleg-pos">✓ ${escapeHtml(b)}</span>`).join('');
+    const neg = (kat.belege_schwach || []).map(b => `<span class="beleg-neg">✗ ${escapeHtml(b)}</span>`).join('');
+    bewertungHTML += `<tr><td class="kat-name">${k.label}</td><td class="kat-punkte">${p}/4</td><td>${escapeHtml(kat.begruendung||'')}${pos?'<br>'+pos:''}${neg?'<br>'+neg:''}</td></tr>`;
+  });
+  bewertungHTML += `<tr class="gesamt-row"><td colspan="2"><strong>Gesamt</strong></td><td><strong>${s3.gesamtpunkte ?? gesamtPunkte} / 20</strong></td></tr></tbody></table>`;
+  $('fbErfuellung').innerHTML = bewertungHTML;
+
+  $('fbAufbau').innerHTML = `<strong>${escapeHtml(s3.niveaueinschaetzung||'—')}</strong> — ${escapeHtml(s3.niveaubegruendung||'')}`;
+
+  let analyseHTML = '';
+  if ((s4.grammatikfehler||[]).length) {
+    analyseHTML += '<strong>✗ Grammatikfehler</strong><ul class="analyse-list">';
+    (s4.grammatikfehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)} (Z.${f.zeile})</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  if ((s4.orthografiefehler||[]).length) {
+    analyseHTML += '<strong>✗ Orthografiefehler</strong><ul class="analyse-list">';
+    (s4.orthografiefehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span><span class="erkl">Z.${f.zeile}</span></li>`; });
+    analyseHTML += '</ul>';
+  }
+  $('fbSprache').innerHTML = analyseHTML || '—';
+
+  const list = $('korrekturenList');
+  list.innerHTML = '';
+  (s5.gut_gelungen || []).forEach(g => { const li = document.createElement('li'); li.innerHTML = `<span class="korr">✓</span> ${escapeHtml(g)}`; list.appendChild(li); });
+  (s5.verbessern || []).forEach(v => { const li = document.createElement('li'); li.innerHTML = `<span class="orig">→</span> ${escapeHtml(v)}`; list.appendChild(li); });
+
+  $('fbTip').textContent = '🎯 Nächstes Lernziel: ' + (s5.naechstes_lernziel || '');
+  $('loadingResult').style.display = 'none';
+  $('feedback').style.display = 'block';
+  const stamp = $('stamp');
+  stamp.style.animation = 'none'; stamp.offsetHeight; stamp.style.animation = null;
 }
 
 /* ============================================================
@@ -651,6 +946,7 @@ WICHTIGE BEWERTUNGSGRUNDSÄTZE:
 - Wohlwollende Bewertung
 - Verständlichkeit hat Vorrang vor Fehlerfreiheit
 - Strukturen (Kategorie 6) und Grammatik (Kategorie 7) STRIKT GETRENNT bewerten — Strukturen = Vielfalt und Angemessenheit, Grammatik = Korrektheit
+- Bei Kategorie 5 (Wortschatz): Vergleiche den verwendeten Wortschatz mit ${wortlisteHinweis('B1')}. Wörter deutlich darüber sind kein Fehler (im Gegenteil, das kann positiv erwähnt werden), aber wenn der Wortschatz spürbar unter dem B1-Niveau bleibt, erwähne das in der Begründung.
 - Jede Punktevergabe mit konkreten Textbelegen begründen
 - Bei Grenzfällen transparent erläutern
 
@@ -709,7 +1005,7 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
     console.error(e);
     $('loadingResult').style.display = 'none';
     $('feedback').style.display = 'block';
-    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+    $('fbErfuellung').textContent = mensagemErroAmigavel(e);
   }
 }
 
@@ -722,11 +1018,12 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
 async function runKorrekturGenerico(text){
   const meta = currentMeta();
   const quelltextInfo = state.aufgabaObj.quelltext ? `\nAusgangstext/Grafikbeschreibung: ${state.aufgabaObj.quelltext}` : '';
-  const nivelDesc = state.niveau === 'A2' ? 'IVA 2 (Vorbereitung auf DSD I, Niveau A2)' : 'DSD II (Niveau B2/C1)';
 
-  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte folgenden Schülertext für die Textsorte "${meta.label}" auf Zielniveau ${nivelDesc} (Schwierigkeitsgrad der Aufgabe: ${state.schwierigkeit}/8). Sei präzise und schnell, keine langen Einleitungen.
+  const prompt = `Du bist ein erfahrener Prüfer für Deutsch als Fremdsprache. Bewerte folgenden Schülertext für die Textsorte "${meta.label}" auf Zielniveau DSD II (Niveau B2/C1) (Schwierigkeitsgrad der Aufgabe: ${state.schwierigkeit}/8). Sei präzise und schnell, keine langen Einleitungen.
 
 HINWEIS: Dies ist eine vorläufige, allgemeine Korrektur (kein offizielles Bewertungsraster für dieses Prüfungsformat).
+
+Wortschatz-Kalibrierung: Bewerte den verwendeten Wortschatz auch im Vergleich zu ${wortlisteHinweis('C1')} — erwähne im "sprache"-Feld, ob der Wortschatz spürbar über, unter oder genau auf diesem Niveau liegt.
 
 Aufgabe: ${state.aufgabaObj.aufgabe}${quelltextInfo}
 Schülertext:
@@ -747,7 +1044,7 @@ Maximal 6 Korrekturen, wichtigste zuerst.`;
     console.error(e);
     $('loadingResult').style.display = 'none';
     $('feedback').style.display = 'block';
-    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+    $('fbErfuellung').textContent = mensagemErroAmigavel(e);
   }
 }
 
@@ -898,6 +1195,7 @@ Der Text soll ein realistisches, gut geschriebenes Beispiel für dieses Niveau s
 if ($('btnNeueTextsorte')) $('btnNeueTextsorte').addEventListener('click', () => { state.maxPage = 0; goToPage('config'); });
 if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => {
   $('textInput').value=''; updateWordCount(); renderAufgabeInline(); goToPage('schreiben'); iniciarCronometro();
+  iniciarSalvamentoNuvemPeriodico();
   if ($('musterloesungResult')) $('musterloesungResult').innerHTML = '';
   if ($('btnMusterloesung')) $('btnMusterloesung').textContent = '📄 Musterlösung anzeigen';
 });
@@ -912,6 +1210,9 @@ if ($('btnNochmal')) $('btnNochmal').addEventListener('click', () => {
   renderNiveauRowReal();
   if (!location.hash) location.hash = '#/config';
   onHashChange();
+
+  const rascunhoNuvem = await verificarRascunhoNuvem();
+  if (rascunhoNuvem) renderAvisoRascunhoNuvem(rascunhoNuvem);
 })();
 
 /* ================================================================
@@ -922,10 +1223,14 @@ const TEMPO_PROVA = { A2: 45, B1: 75, C1: 120 }; // minutos
 let timerInterval = null;
 let timerSeconds = 0;
 
-function iniciarCronometro(){
+function iniciarCronometro(segundosIniciais){
   clearInterval(timerInterval);
-  const minutos = TEMPO_PROVA[state.niveau] || 75;
-  timerSeconds = minutos * 60;
+  if (typeof segundosIniciais === 'number' && segundosIniciais > 0) {
+    timerSeconds = segundosIniciais;
+  } else {
+    const minutos = TEMPO_PROVA[state.niveau] || 75;
+    timerSeconds = minutos * 60;
+  }
   renderCronometro();
   timerInterval = setInterval(() => {
     timerSeconds--;

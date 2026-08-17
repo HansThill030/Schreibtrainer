@@ -1,20 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-S08J1DDYNH"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-S08J1DDYNH');
-</script>
+<script src="js/consent.js"></script>
 
 <meta charset="UTF-8">
 <script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trainer — Sprachio</title>
 <meta name="description" content="Wähle dein Niveau und übe Schreibaufgaben fürs Deutsche Sprachdiplom mit KI-Korrektur.">
+<link rel="canonical" href="https://sprachio.hanst030.com/trainer-hub">
 <link rel="icon" href="assets/mark.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e1b4b">
@@ -94,6 +88,24 @@
   font-family:'Space Grotesk',sans-serif;font-size:0.78rem;font-weight:600;
   padding:6px 14px;border-radius:20px;border:1px solid var(--line);color:var(--ink-soft);
 }
+
+/* Onboarding — primeira visita ao Hub */
+.onboarding-overlay{
+  display:none;position:fixed;inset:0;background:rgba(21,19,31,0.55);
+  z-index:150;align-items:center;justify-content:center;padding:20px;
+}
+.onboarding-overlay.show{display:flex;}
+.onboarding-card{
+  background:var(--card);border-radius:var(--r);max-width:420px;width:100%;
+  padding:28px 26px;text-align:center;
+}
+.onboarding-card .icon{font-size:2.4rem;margin-bottom:14px;}
+.onboarding-card h3{font-family:'Space Grotesk',sans-serif;font-size:1.2rem;margin:0 0 10px;}
+.onboarding-card p{font-size:0.9rem;color:var(--ink-soft);line-height:1.6;margin:0 0 20px;}
+.onboarding-steps{text-align:left;margin:0 0 22px;padding:0;list-style:none;}
+.onboarding-steps li{font-size:0.86rem;color:var(--ink-soft);padding:8px 0;border-top:1px solid var(--line);}
+.onboarding-steps li:first-child{border-top:none;}
+.onboarding-steps b{color:var(--ink);}
 </style>
 </head>
 <body>
@@ -202,8 +214,23 @@
         <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
       </span>
     </a>
-    <small>Übungswerkzeug — keine offizielle Prüfungsbewertung.</small>
+    <small>Übungswerkzeug — keine offizielle Prüfungsbewertung. · <a href="/datenschutz">Datenschutz</a> · <a href="/nutzungsbedingungen">Nutzungsbedingungen</a></small>
   </footer>
+</div>
+
+<div class="onboarding-overlay" id="onboardingOverlay">
+  <div class="onboarding-card">
+    <div class="icon">👋</div>
+    <h3>Willkommen bei Sprachio!</h3>
+    <p>Kurzer Überblick, bevor es losgeht:</p>
+    <ul class="onboarding-steps">
+      <li><b>🎯 Training starten</b> — neue Aufgabe generieren lassen oder einen echten Modellsatz üben, sofort korrigiert von der KI.</li>
+      <li><b>📸 Freie Korrektur</b> — Foto eines handschriftlichen Textes hochladen (z.B. aus dem Unterricht) und korrigieren lassen.</li>
+      <li><b>🗂️ Vokabeln</b> — aus jeder Korrektur entstehen automatisch Karteikarten zum Wiederholen.</li>
+      <li><b>🎓 Lehrer-Modus</b> — falls du unterrichtest: Klasse erstellen und den Fortschritt deiner Schüler/innen verfolgen.</li>
+    </ul>
+    <button class="primary" id="btnOnboardingClose" style="width:100%;">Los geht's →</button>
+  </div>
 </div>
 
 <script src="js/config.js"></script>
@@ -297,6 +324,22 @@ if (SUPABASE_URL) {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
 }
+</script>
+<script>
+(function(){
+  var KEY = 'sprachio_onboarding_visto';
+  if (!localStorage.getItem(KEY)) {
+    var overlay = document.getElementById('onboardingOverlay');
+    var btn = document.getElementById('btnOnboardingClose');
+    if (overlay && btn) {
+      overlay.classList.add('show');
+      btn.addEventListener('click', function(){
+        overlay.classList.remove('show');
+        localStorage.setItem(KEY, '1');
+      });
+    }
+  }
+})();
 </script>
 </body>
 </html>

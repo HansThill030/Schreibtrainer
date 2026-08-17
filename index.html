@@ -1,23 +1,93 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-S08J1DDYNH"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-S08J1DDYNH');
-</script>
+<script src="js/consent.js"></script>
 
 <meta charset="UTF-8">
 <script src="js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sprachio — Deutsch lernen. Einfach besser.</title>
 <meta name="description" content="Sprachio: Schreibtraining fürs Deutsche Sprachdiplom (IVA 2, DSD I, DSD II) mit KI-generierten Aufgaben und sofortiger Korrektur.">
+<link rel="canonical" href="https://sprachio.hanst030.com/">
+
 <meta property="og:title" content="Sprachio — Deutsch lernen. Einfach besser.">
-<meta property="og:description" content="Schreibtraining fürs Deutsche Sprachdiplom mit KI-Korrektur.">
+<meta property="og:description" content="Schreibtraining fürs Deutsche Sprachdiplom (IVA 2, DSD I, DSD II) mit KI-generierten Aufgaben und sofortiger, niveaugerechter Korrektur.">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://sprachio.hanst030.com/">
+<meta property="og:image" content="https://sprachio.hanst030.com/assets/icon-512.png">
+<meta property="og:locale" content="de_DE">
+<meta property="og:site_name" content="Sprachio">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Sprachio — Deutsch lernen. Einfach besser.">
+<meta name="twitter:description" content="Schreibtraining fürs Deutsche Sprachdiplom mit KI-Korrektur.">
+<meta name="twitter:image" content="https://sprachio.hanst030.com/assets/icon-512.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Sprachio",
+  "alternateName": "Sprachio — Deutsch lernen",
+  "url": "https://sprachio.hanst030.com/",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Web, iOS, Android (PWA)",
+  "description": "Sprachio ist eine Lernplattform für Deutsch als Fremdsprache mit Fokus auf das Deutsche Sprachdiplom (DSD). Schüler/innen üben KI-generierte Schreibaufgaben auf den Niveaustufen IVA 2, DSD I und DSD II und erhalten sofortige, niveaugerechte Korrekturen inklusive Vokabeltraining.",
+  "inLanguage": "de",
+  "audience": {
+    "@type": "EducationalAudience",
+    "educationalRole": "student"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "EUR"
+  },
+  "publisher": {
+    "@type": "Organization",
+    "name": "Sprachio"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Was ist Sprachio?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sprachio ist eine Übungsplattform für Deutsch als Fremdsprache, die Schreibaufgaben für das Deutsche Sprachdiplom (DSD) generiert und mit KI korrigiert — für die Niveaustufen IVA 2 (A2), DSD I (B1) und DSD II (B2/C1)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Ist die Korrektur von Sprachio eine offizielle DSD-Prüfungsbewertung?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Nein. Sprachio ist ein Übungswerkzeug zur Vorbereitung. Die KI-Korrekturen orientieren sich an den offiziellen Bewertungskriterien, ersetzen aber keine offizielle Prüfungsbewertung durch eine Lehrkraft oder Prüfungskommission."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Welche DSD-Niveaustufen deckt Sprachio ab?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Sprachio deckt drei Niveaustufen ab: IVA 2 (Vorbereitung, Niveau A2), DSD I (Niveau B1) und DSD II (Niveau B2/C1)."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Ist Sprachio kostenlos?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Ja, Sprachio kann kostenlos genutzt werden."
+      }
+    }
+  ]
+}
+</script>
 <link rel="icon" href="assets/mark.png">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1e1b4b">
@@ -34,8 +104,8 @@
   <section class="hero">
     <img src="assets/mark.png" alt="Sprachio" width="53" height="60" class="logo-big fade-up">
     <div class="tagline fade-up d1">Deutsch lernen. Einfach besser.</div>
-    <h2 class="fade-up d2">Treina para o DSD.<br><span class="accent-word">Com IA.</span></h2>
-    <p class="fade-up d3">Sprachio gera tarefas de escrita realistas para o Deutsches Sprachdiplom e corrige o teu texto em segundos, com avaliação de nível e melhorias concretas.</p>
+    <h2 class="fade-up d2">Trainiere fürs DSD.<br><span class="accent-word">Mit KI.</span></h2>
+    <p class="fade-up d3">Sprachio generiert realistische Schreibaufgaben für das Deutsche Sprachdiplom und korrigiert deinen Text in Sekunden — mit Niveau-Einschätzung und konkreten Verbesserungsvorschlägen.</p>
   </section>
 
   <div class="feature-grid" id="featureGrid">
@@ -65,6 +135,26 @@
     <a class="big-cta" href="/trainer-hub">Jetzt starten →</a>
   </div>
 
+  <div class="faq-section">
+    <div class="section-label">Häufige Fragen</div>
+    <details class="faq-item">
+      <summary>Was ist Sprachio?</summary>
+      <p>Sprachio ist eine Übungsplattform für Deutsch als Fremdsprache, die Schreibaufgaben für das Deutsche Sprachdiplom (DSD) generiert und mit KI korrigiert — für die Niveaustufen IVA 2 (A2), DSD I (B1) und DSD II (B2/C1).</p>
+    </details>
+    <details class="faq-item">
+      <summary>Ist die Korrektur von Sprachio eine offizielle DSD-Prüfungsbewertung?</summary>
+      <p>Nein. Sprachio ist ein Übungswerkzeug zur Vorbereitung. Die KI-Korrekturen orientieren sich an den offiziellen Bewertungskriterien, ersetzen aber keine offizielle Prüfungsbewertung durch eine Lehrkraft oder Prüfungskommission.</p>
+    </details>
+    <details class="faq-item">
+      <summary>Welche DSD-Niveaustufen deckt Sprachio ab?</summary>
+      <p>Sprachio deckt drei Niveaustufen ab: IVA 2 (Vorbereitung, Niveau A2), DSD I (Niveau B1) und DSD II (Niveau B2/C1).</p>
+    </details>
+    <details class="faq-item">
+      <summary>Ist Sprachio kostenlos?</summary>
+      <p>Ja, Sprachio kann kostenlos genutzt werden.</p>
+    </details>
+  </div>
+
   <footer class="site-footer">
     <a class="brand" href="/">
       <img src="assets/mark.png" alt="Sprachio" width="53" height="60">
@@ -72,7 +162,7 @@
         <span class="name">SPRACHIO</span><br><span class="sub">Deutsch lernen. Einfach besser.</span>
       </span>
     </a>
-    <small>Übungswerkzeug — keine offizielle Prüfungsbewertung.</small>
+    <small>Übungswerkzeug — keine offizielle Prüfungsbewertung. · <a href="/datenschutz">Datenschutz</a> · <a href="/nutzungsbedingungen">Nutzungsbedingungen</a></small>
   </footer>
 </div>
 
