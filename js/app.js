@@ -27,6 +27,17 @@ const $ = id => document.getElementById(id);
 function currentMeta(){ return TEXTSORTEN[state.niveau].find(t => t.key === state.tipoKey); }
 function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
 
+/* Traduz erros técnicos em mensagens compreensíveis pro usuário */
+function mensagemErroAmigavel(e){
+  const msg = (e?.message || String(e) || '').toLowerCase();
+  if (msg.includes('tageslimit')) return '⏳ Tageslimit erreicht. Bitte versuche es morgen erneut.';
+  if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network')) return '📡 Verbindungsproblem. Prüfe deine Internetverbindung und versuche es erneut.';
+  if (msg.includes('timeout') || msg.includes('timed out')) return '⏱️ Die Anfrage hat zu lange gedauert (evtl. Foto zu groß oder Server überlastet). Bitte versuche es erneut oder mit einem kleineren Foto.';
+  if (msg.includes('json') || msg.includes('unexpected token')) return '⚠️ Die KI-Antwort konnte nicht verarbeitet werden. Bitte versuche es nochmal.';
+  if (msg.includes('502') || msg.includes('503') || msg.includes('gemini request failed')) return '🔧 Der KI-Dienst ist gerade überlastet. Bitte in ein paar Minuten erneut versuchen.';
+  return '❌ Fehler bei der Korrektur. Bitte nochmal versuchen.';
+}
+
 /* Referência de vocabulário oficial (Goethe-Institut Wortliste / GER) por nível —
    usado tanto na geração de tarefas quanto na correção, pra calibrar dificuldade
    de forma consistente com um padrão reconhecido, sem reproduzir a lista em si. */
@@ -150,11 +161,14 @@ async function callGemini(userPrompt, maxTokens, images){
     headers: {
       "Content-Type": "application/json",
       "apikey": SUPABASE_KEY,
-      "Authorization": "Bearer " + SUPABASE_KEY
+      "Authorization": "Bearer " + (_session?.access_token || SUPABASE_KEY)
     },
     body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 429 || data.limitReached) {
+    throw new Error('Tageslimit erreicht. Bitte versuche es morgen erneut.');
+  }
   if (!response.ok) {
     const detail = data?.error || data?.details || `HTTP ${response.status}`;
     throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
@@ -730,7 +744,7 @@ Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Ba
     console.error(e);
     $('loadingResult').style.display = 'none';
     $('feedback').style.display = 'block';
-    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+    $('fbErfuellung').textContent = mensagemErroAmigavel(e);
   }
 }
 
@@ -878,7 +892,7 @@ Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
     console.error(e);
     $('loadingResult').style.display = 'none';
     $('feedback').style.display = 'block';
-    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+    $('fbErfuellung').textContent = mensagemErroAmigavel(e);
   }
 }
 
@@ -917,7 +931,7 @@ Maximal 6 Korrekturen, wichtigste zuerst.`;
     console.error(e);
     $('loadingResult').style.display = 'none';
     $('feedback').style.display = 'block';
-    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+    $('fbErfuellung').textContent = mensagemErroAmigavel(e);
   }
 }
 

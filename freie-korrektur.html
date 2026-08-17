@@ -1,14 +1,7 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-S08J1DDYNH"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-S08J1DDYNH');
-</script>
+<script src="js/consent.js"></script>
 
 <meta charset="UTF-8">
 <meta name="robots" content="noindex, nofollow">
@@ -181,6 +174,15 @@ function sbFetch(path, options={}){
 const NIVEAUS = ['A2','B1','C1'];
 const NIVEAU_LABELS = { A2:'IVA 2', B1:'DSD I', C1:'DSD II' };
 function niveauLabel(n){ return NIVEAU_LABELS[n] || n; }
+function mensagemErroAmigavel(e){
+  const msg = (e?.message || String(e) || '').toLowerCase();
+  if (msg.includes('tageslimit')) return '⏳ Tageslimit erreicht. Bitte versuche es morgen erneut.';
+  if (msg.includes('failed to fetch') || msg.includes('networkerror') || msg.includes('network')) return '📡 Verbindungsproblem. Prüfe deine Internetverbindung und versuche es erneut.';
+  if (msg.includes('timeout') || msg.includes('timed out')) return '⏱️ Die Anfrage hat zu lange gedauert (evtl. Foto zu groß). Bitte versuche es erneut oder mit einem kleineren Foto.';
+  if (msg.includes('json') || msg.includes('unexpected token')) return '⚠️ Die KI-Antwort konnte nicht verarbeitet werden. Bitte versuche es nochmal.';
+  if (msg.includes('502') || msg.includes('503') || msg.includes('gemini request failed')) return '🔧 Der KI-Dienst ist gerade überlastet. Bitte in ein paar Minuten erneut versuchen.';
+  return '❌ Fehler bei der Korrektur. Bitte nochmal versuchen.';
+}
 function wortlisteHinweis(niveau){
   const map = {
     A2: 'der Goethe-Institut A2-Wortliste (GER-Niveau A2)',
@@ -255,9 +257,22 @@ document.querySelectorAll('.mode-tab').forEach(tab => {
 $('uploadZone').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
+  if (state.imagens.length + files.length > 8) {
+    alert('Maximal 8 Fotos pro Korrektur. Bitte entferne zuerst ein paar Fotos.');
+    e.target.value = '';
+    return;
+  }
   for (const file of files) {
-    const { dataUrl, mimeType, base64 } = await comprimirImagem(file);
-    state.imagens.push({ mimeType, data: base64, previewUrl: dataUrl });
+    if (file.size > 20 * 1024 * 1024) {
+      alert(`"${file.name}" ist sehr groß (>20 MB) und wird übersprungen. Bitte ein kleineres Foto verwenden.`);
+      continue;
+    }
+    try {
+      const { dataUrl, mimeType, base64 } = await comprimirImagem(file);
+      state.imagens.push({ mimeType, data: base64, previewUrl: dataUrl });
+    } catch(err) {
+      alert(`Fehler beim Verarbeiten von "${file.name}". Bitte versuche es mit einem anderen Foto.`);
+    }
   }
   e.target.value = '';
   renderGaleria();
@@ -270,7 +285,7 @@ function renderGaleria(){
     <div class="galeria-item">
       <span class="num">${i+1}</span>
       <img src="${img.previewUrl}">
-      <button class="btn-remove-item" data-i="${i}">×</button>
+      <button class="btn-remove-item" data-i="${i}" aria-label="Foto ${i+1} entfernen">×</button>
     </div>`).join('');
   el.querySelectorAll('.btn-remove-item').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -322,10 +337,13 @@ async function callGemini(prompt, maxTokens, images){
   if (images && images.length) body.images = images.map(img => ({ mimeType: img.mimeType, data: img.data }));
   const response = await fetch(`${SUPABASE_URL}/functions/v1/gemini-proxy`, {
     method: 'POST',
-    headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization':'Bearer '+SUPABASE_KEY },
+    headers: { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization':'Bearer '+(session?.access_token || SUPABASE_KEY) },
     body: JSON.stringify(body)
   });
   const data = await response.json().catch(() => ({}));
+  if (response.status === 429 || data.limitReached) {
+    throw new Error('Tageslimit erreicht. Bitte versuche es morgen erneut.');
+  }
   if (!response.ok || data.error) {
     const detail = data?.error || `HTTP ${response.status}`;
     throw new Error(typeof detail === 'string' ? detail : JSON.stringify(detail));
@@ -362,7 +380,7 @@ $('btnKorrigieren').addEventListener('click', async () => {
     console.error(e);
     $('loadingResult').style.display = 'none';
     $('feedback').style.display = 'block';
-    $('fbErfuellung').textContent = 'Fehler bei der Korrektur. Bitte nochmal versuchen.';
+    $('fbErfuellung').textContent = mensagemErroAmigavel(e);
   }
   $('navNovaCorrekturWrap').style.display = 'flex';
 });

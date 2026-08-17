@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<script src="js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nutzungsbedingungen — Sprachio</title>
+<link rel="icon" href="assets/mark.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e1b4b">
+<link rel="stylesheet" href="css/styles.css">
+<style>
+.legal-content{max-width:720px;line-height:1.7;font-size:0.94rem;color:var(--ink-soft);}
+.legal-content h2{color:var(--ink);font-size:1.1rem;margin:32px 0 10px;}
+.legal-content h2:first-child{margin-top:0;}
+.legal-content ul{padding-left:20px;}
+.legal-disclaimer{
+  background:var(--bg);border:1px solid var(--line);border-left:3px solid var(--warn);
+  border-radius:var(--r-sm);padding:14px 16px;margin-bottom:32px;font-size:0.82rem;color:var(--ink-soft);
+}
+</style>
+</head>
+<body>
+<div class="wrap" role="main">
+  <div class="masthead">
+    <a class="brand" href="/">
+      <img src="assets/mark.png" alt="Sprachio" width="53" height="60">
+      <span><span class="name">SPRACHIO</span></span>
+    </a>
+    <div class="header-actions"><a class="home-link" href="/trainer-hub">← Hub</a></div>
+  </div>
+
+  <h2 class="screen-title" style="margin-bottom:20px;">Nutzungsbedingungen</h2>
+
+  <div class="legal-disclaimer">
+    ⚠️ Dieses Dokument ist eine allgemeine Vorlage und ersetzt keine rechtliche Beratung.
+  </div>
+
+  <div class="legal-content">
+    <h2>1. Zweck der Plattform</h2>
+    <p>Sprachio ist ein Übungswerkzeug für Deutsch als Fremdsprache mit Fokus auf das Deutsche Sprachdiplom (IVA 2, DSD I, DSD II). Die KI-gestützten Korrekturen dienen dem Lernen und Üben — <strong>sie stellen keine offizielle Prüfungsbewertung dar</strong> und ersetzen keine reguläre Bewertung durch eine Lehrkraft oder Prüfungskommission.</p>
+
+    <h2>2. Nutzungsvoraussetzungen</h2>
+    <p>Die Nutzung erfolgt in der Regel im schulischen Kontext. Für die Registrierung ist eine gültige E-Mail-Adresse erforderlich. Nutzer/innen sind für die Richtigkeit ihrer Angaben verantwortlich.</p>
+
+    <h2>3. Zulässige Nutzung</h2>
+    <ul>
+      <li>Sprachio darf ausschließlich zu Lern- und Übungszwecken verwendet werden.</li>
+      <li>Es ist untersagt, die Plattform für die automatisierte Bearbeitung echter Prüfungen (z.B. Live-Antworten während einer offiziellen DSD-Prüfung) zu verwenden.</li>
+      <li>Hochgeladene Fotos/Texte müssen von der/dem Nutzer/in selbst stammen oder mit Zustimmung der betroffenen Person hochgeladen werden.</li>
+    </ul>
+
+    <h2>4. Genauigkeit der KI-Korrekturen</h2>
+    <p>Die Korrekturen werden von einem KI-Sprachmodell (Google Gemini) erstellt. Trotz sorgfältiger Prompt-Gestaltung können Fehler auftreten. Sprachio übernimmt keine Garantie für die vollständige Richtigkeit der Bewertungen. Für die offizielle Prüfungsvorbereitung sollten die Ergebnisse stets mit einer Lehrkraft besprochen werden.</p>
+
+    <h2>5. Lehrer-Modus</h2>
+    <p>Lehrkräfte, die den Lehrer-Modus nutzen, erhalten Einsicht in den Lernfortschritt und die eingereichten Texte der Schüler/innen ihrer Klasse. Diese Funktion darf ausschließlich im Rahmen einer bestehenden Lehrer-Schüler-Beziehung genutzt werden.</p>
+
+    <h2>6. Haftungsbeschränkung</h2>
+    <p>Sprachio wird "wie besehen" bereitgestellt. Eine Haftung für Schäden, die durch die Nutzung der Plattform entstehen (insbesondere durch fehlerhafte KI-Bewertungen), ist im gesetzlich zulässigen Rahmen ausgeschlossen.</p>
+
+    <h2>7. Änderungen</h2>
+    <p>Diese Nutzungsbedingungen können angepasst werden. Wesentliche Änderungen werden auf der Plattform kommuniziert.</p>
+  </div>
+
+  <div style="margin-top:40px;"><a class="home-link" href="/datenschutz">← Datenschutzerklärung</a></div>
+</div>
+<script src="js/config.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('service-worker.js').catch(()=>{}));
+}
+</script>
+</body>
+</html>

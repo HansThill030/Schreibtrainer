@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sprachio-v1';
+const CACHE_NAME = 'sprachio-v2';
 const SHELL_FILES = [
   '/',
   '/trainer-hub',
@@ -8,10 +8,14 @@ const SHELL_FILES = [
   '/vokabeln',
   '/freie-korrektur',
   '/professor',
+  '/minhas-turmas',
+  '/datenschutz',
+  '/nutzungsbedingungen',
   '/css/styles.css',
   '/js/app.js',
   '/js/config.js',
   '/js/theme.js',
+  '/js/consent.js',
   '/assets/mark.png',
   '/assets/icon-192.png',
   '/assets/icon-512.png',

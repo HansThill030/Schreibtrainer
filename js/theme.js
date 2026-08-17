@@ -7,8 +7,9 @@
     if (document.getElementById('themeToggle')) return;
     var btn = document.createElement('button');
     btn.id = 'themeToggle';
-    btn.title = 'Design wechseln';
-    btn.setAttribute('aria-label', 'Design wechseln');
+    btn.setAttribute('aria-label', 'Design wechseln (hell/dunkel)');
+    btn.setAttribute('title', 'Design wechseln');
+    btn.setAttribute('type', 'button');
     btn.textContent = document.documentElement.getAttribute('data-theme') === 'dark' ? '☀️' : '🌙';
     btn.addEventListener('click', function(){
       var atual = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';

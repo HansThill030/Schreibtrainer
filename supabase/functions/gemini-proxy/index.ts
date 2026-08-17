@@ -1,15 +1,22 @@
 // Supabase Edge Function: gemini-proxy
 // Required secret: GEMINI_API_KEY
+// SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY são injetadas automaticamente pelo runtime.
 // Deploy: supabase functions deploy gemini-proxy --no-verify-jwt
 //
-// Aceita opcionalmente uma imagem (para transcrição/correção de textos manuscritos
-// fotografados). Body: { prompt: string, max_tokens?: number, image?: { mimeType: string, data: string (base64 sem prefixo) } }
+// Aceita opcionalmente uma ou mais imagens (para transcrição/correção de textos
+// manuscritos fotografados). Body: { prompt: string, max_tokens?: number, images?: [{ mimeType, data }] }
+//
+// Rate limit: se o cliente enviar o token de sessão real do usuário (Authorization
+// header), a função identifica o usuário e aplica um limite diário de chamadas —
+// protege contra abuso da chave pública do Supabase (que é necessariamente pública).
 
 const MODELS = [
   "gemini-3.6-flash",
   "gemini-3.5-flash",
   "gemini-3.1-flash-lite",
 ];
+
+const DAILY_LIMIT = 40;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,6 +33,51 @@ function json(data, status = 200) {
   });
 }
 
+async function checarERegistrarUso(userToken) {
+  // Retorna { ok: true } se pode prosseguir, ou { ok: false } se estourou o limite.
+  // Falha silenciosamente (permite a chamada) se não conseguir identificar o usuário
+  // ou se a tabela/infra de rate-limit não estiver disponível — nunca bloqueia por erro interno.
+  if (!userToken || userToken === EXPECTED_APIKEY) return { ok: true };
+
+  const baseUrl = Deno.env.get("SUPABASE_URL");
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!baseUrl || !serviceKey) return { ok: true };
+
+  try {
+    const userRes = await fetch(`${baseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${userToken}`, apikey: EXPECTED_APIKEY },
+    });
+    if (!userRes.ok) return { ok: true };
+    const userData = await userRes.json();
+    const userId = userData?.id;
+    if (!userId) return { ok: true };
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const getRes = await fetch(
+      `${baseUrl}/rest/v1/uso_diario?user_id=eq.${userId}&dia=eq.${hoje}&select=contador`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } }
+    );
+    const rows = getRes.ok ? await getRes.json() : [];
+    const atual = Array.isArray(rows) && rows[0] ? rows[0].contador : 0;
+
+    if (atual >= DAILY_LIMIT) return { ok: false };
+
+    await fetch(`${baseUrl}/rest/v1/uso_diario`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        Prefer: "resolution=merge-duplicates,return=minimal",
+      },
+      body: JSON.stringify({ user_id: userId, dia: hoje, contador: atual + 1 }),
+    });
+    return { ok: true };
+  } catch {
+    return { ok: true }; // infra instável não deve travar o app
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
@@ -36,6 +88,13 @@ Deno.serve(async (req) => {
   const suppliedKey = req.headers.get("apikey");
   if (suppliedKey !== EXPECTED_APIKEY) {
     return json({ error: "Ungültiger oder fehlender apikey-Header." }, 401);
+  }
+
+  const authHeader = req.headers.get("authorization") || "";
+  const userToken = authHeader.replace(/^Bearer\s+/i, "");
+  const usoStatus = await checarERegistrarUso(userToken);
+  if (!usoStatus.ok) {
+    return json({ error: "Tageslimit erreicht. Bitte versuche es morgen erneut.", limitReached: true }, 429);
   }
 
   let requestBody;
