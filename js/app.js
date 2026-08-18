@@ -181,8 +181,53 @@ async function callGemini(userPrompt, maxTokens, images){
 function extractJson(text){
   const cleaned = text.replace(/```json/g,'').replace(/```/g,'').trim();
   const start = cleaned.indexOf('{');
-  const end = cleaned.lastIndexOf('}');
-  return JSON.parse(cleaned.slice(start,end+1));
+  if (start === -1) throw new Error('Keine JSON-Antwort gefunden (leere oder ungültige KI-Antwort).');
+
+  // Tenta achar o "}" que fecha exatamente o objeto raiz, contando chaves/colchetes
+  // e ignorando os que estão dentro de strings — mais confiável que só pegar o último "}"
+  // (que falha se a resposta foi cortada no meio).
+  function fecharBalanceado(s){
+    let depth = 0, dentroString = false, escapando = false;
+    for (let i = 0; i < s.length; i++){
+      const c = s[i];
+      if (escapando) { escapando = false; continue; }
+      if (c === '\\') { escapando = true; continue; }
+      if (c === '"') { dentroString = !dentroString; continue; }
+      if (dentroString) continue;
+      if (c === '{') depth++;
+      else if (c === '}') { depth--; if (depth === 0) return s.slice(0, i+1); }
+    }
+    return null; // nunca fechou — resposta truncada
+  }
+
+  const trecho = cleaned.slice(start);
+  const balanceado = fecharBalanceado(trecho);
+  if (balanceado) {
+    try { return JSON.parse(balanceado); } catch(e) { /* cai no reparo abaixo */ }
+  }
+
+  // Resposta truncada ou malformada: tenta reparar fechando chaves/colchetes/strings pendentes
+  let reparado = balanceado || trecho;
+  let abertos = [];
+  let dentroString = false, escapando = false;
+  for (const c of reparado){
+    if (escapando) { escapando = false; continue; }
+    if (c === '\\') { escapando = true; continue; }
+    if (c === '"') { dentroString = !dentroString; continue; }
+    if (dentroString) continue;
+    if (c === '{' || c === '[') abertos.push(c === '{' ? '}' : ']');
+    else if (c === '}' || c === ']') abertos.pop();
+  }
+  if (dentroString) reparado += '"';
+  // remove vírgula pendurada antes de fechar (ex: `"a":1,` no final)
+  reparado = reparado.replace(/,\s*$/, '');
+  reparado += abertos.reverse().join('');
+
+  try {
+    return JSON.parse(reparado);
+  } catch(e) {
+    throw new Error('unexpected token — Die KI-Antwort war unvollständig oder ungültig (JSON konnte nicht repariert werden).');
+  }
 }
 function escapeHtml(str){ const div = document.createElement('div'); div.textContent = str || ''; return div.innerHTML; }
 
@@ -870,8 +915,8 @@ Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Ba
     "niveaubegruendung": "..."
   },
   "schritt4_sprachanalyse": {
-    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Zeitform", "zeile": 0}],
-    "orthografiefehler": [{"original": "...", "zielschreibung": "...", "zeile": 0}]
+    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Zeitform"}],
+    "orthografiefehler": [{"original": "...", "zielschreibung": "..."}]
   },
   "schritt5_feedback": {
     "gut_gelungen": ["...", "...", "..."],
@@ -880,10 +925,10 @@ Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Ba
   },
   "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]
 }
-"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen.`;
+"vokabelkarten": maximal 5 nützliche Vokabeln zum Wiederholen. Begrenze "grammatikfehler" und "orthografiefehler" auf jeweils maximal 6 Einträge (wichtigste zuerst). Halte "begruendung" kurz und prägnant.`;
 
   try {
-    const raw = await callGemini(prompt, 5500);
+    const raw = await callGemini(prompt, 6000);
     const json = extractJson(raw);
     renderFeedbackIVA2(json);
     const feedbackSimples = {
@@ -940,12 +985,12 @@ function renderFeedbackIVA2(json){
   let analyseHTML = '';
   if ((s4.grammatikfehler||[]).length) {
     analyseHTML += '<strong>✗ Grammatikfehler</strong><ul class="analyse-list">';
-    (s4.grammatikfehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)} (Z.${f.zeile})</span></li>`; });
+    (s4.grammatikfehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)}</span></li>`; });
     analyseHTML += '</ul>';
   }
   if ((s4.orthografiefehler||[]).length) {
     analyseHTML += '<strong>✗ Orthografiefehler</strong><ul class="analyse-list">';
-    (s4.orthografiefehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span><span class="erkl">Z.${f.zeile}</span></li>`; });
+    (s4.orthografiefehler||[]).forEach(f => { analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span></li>`; });
     analyseHTML += '</ul>';
   }
   $('fbSprache').innerHTML = analyseHTML || '—';
@@ -997,9 +1042,8 @@ WICHTIGE BEWERTUNGSGRUNDSÄTZE:
 
 Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Backticks. Alle Felder auf Deutsch. Format:
 {
-  "schritt1_transkription": [{"zeile": 1, "text": "Zeile 1 des Textes..."}, {"zeile": 2, "text": "..."}],
   "schritt2_bewertung": {
-    "gesamteindruck":     {"punkte": 0, "begruendung": "...", "belege_positiv": ["Z.X: '...'"], "belege_schwach": ["Z.X: '...'"]},
+    "gesamteindruck":     {"punkte": 0, "begruendung": "...", "belege_positiv": ["'...'"], "belege_schwach": ["'...'"]},
     "wiedergabe":         {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
     "eigene_erfahrungen": {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
     "eigene_meinung":     {"punkte": 0, "begruendung": "...", "belege_positiv": [], "belege_schwach": []},
@@ -1015,9 +1059,9 @@ Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Ba
     "niveaubegruendung": "..."
   },
   "schritt4_sprachanalyse": {
-    "gelungene_strukturen": [{"typ": "weil-Satz", "beleg": "Z.X: '...'"}],
-    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Nebensatzstellung", "zeile": 0}],
-    "orthografiefehler": [{"original": "...", "zielschreibung": "...", "zeile": 0}],
+    "gelungene_strukturen": [{"typ": "weil-Satz", "beleg": "'...'"}],
+    "grammatikfehler": [{"original": "...", "zielstruktur": "...", "kategorie": "Satzstellung|Kasus|Artikel|Verbformen|Nebensatzstellung"}],
+    "orthografiefehler": [{"original": "...", "zielschreibung": "..."}],
     "wortschatz": {"positiv": ["..."], "auffaelligkeiten": ["..."]}
   },
   "schritt5_feedback": {
@@ -1027,11 +1071,12 @@ Antworte NUR mit einem einzigen JSON-Objekt, keine Einleitung, keine Markdown-Ba
   },
   "vokabelkarten": [{"wort": "...", "bedeutung": "kurze Erklärung/Übersetzung auf Deutsch", "beispiel": "Beispielsatz mit dem Wort"}]
 }
-Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte.
-"vokabelkarten": 3-5 nützliche Vokabeln zum Wiederholen — entweder falsch verwendete Wörter (korrigiert) oder thematisch passende neue Wörter, die der Schüler noch lernen sollte.`;
+Punkte pro Kategorie: 0-3. Gesamt: max 24 Punkte. Halte "begruendung" und die "belege"-Einträge KURZ und PRÄGNANT (max. 1-2 Sätze), um Platz zu sparen.
+"vokabelkarten": maximal 5 nützliche Vokabeln zum Wiederholen — entweder falsch verwendete Wörter (korrigiert) oder thematisch passende neue Wörter, die der Schüler noch lernen sollte.
+Begrenze "grammatikfehler" und "orthografiefehler" auf jeweils maximal 6 Einträge (wichtigste zuerst), um die Antwort nicht zu lang werden zu lassen.`;
 
   try {
-    const raw = await callGemini(prompt, 7000);
+    const raw = await callGemini(prompt, 8000);
     const json = extractJson(raw);
     renderFeedbackDSD1(json);
     const feedbackSimples = {
@@ -1176,7 +1221,7 @@ function renderFeedbackDSD1(json){
   if ((s4.grammatikfehler||[]).length) {
     analyseHTML += '<strong>✗ Grammatikfehler</strong><ul class="analyse-list">';
     (s4.grammatikfehler||[]).forEach(f => {
-      analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)} (Z.${f.zeile})</span></li>`;
+      analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielstruktur)}</span><span class="erkl">${escapeHtml(f.kategorie)}</span></li>`;
     });
     analyseHTML += '</ul>';
   }
@@ -1185,7 +1230,7 @@ function renderFeedbackDSD1(json){
   if ((s4.orthografiefehler||[]).length) {
     analyseHTML += '<strong>✗ Orthografiefehler</strong><ul class="analyse-list">';
     (s4.orthografiefehler||[]).forEach(f => {
-      analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span><span class="erkl">Z.${f.zeile}</span></li>`;
+      analyseHTML += `<li><span class="orig">${escapeHtml(f.original)}</span> → <span class="korr">${escapeHtml(f.zielschreibung)}</span></li>`;
     });
     analyseHTML += '</ul>';
   }
