@@ -644,11 +644,11 @@ function mostrarAvisoRascunho(){
 let cloudDraftInterval = null;
 
 async function salvarRascunhoNuvem(){
-  if (!_session?.user?.id) return;
+  if (!_session?.user?.id) { console.warn('[Rascunho-Nuvem] sem sessão de usuário — não salva.'); return; }
   const texto = $('textInput')?.value || '';
   if (!texto.trim() || !state.aufgabaObj) return;
   try {
-    await sbFetch('rascunhos', {
+    const res = await sbFetch('rascunhos', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
       body: JSON.stringify({
@@ -662,7 +662,27 @@ async function salvarRascunhoNuvem(){
         atualizado_em: new Date().toISOString()
       })
     });
-  } catch(e) { console.warn('Rascunho na nuvem não salvo:', e); }
+    if (!res.ok) {
+      const detalhe = await res.text().catch(() => '');
+      console.error('[Rascunho-Nuvem] Fehler beim Speichern — Tabelle "rascunhos" existiert? RLS korrekt?', res.status, detalhe);
+      return;
+    }
+    mostrarIndicadorSalvo();
+  } catch(e) { console.error('[Rascunho-Nuvem] Netzwerkfehler beim Speichern:', e); }
+}
+
+function mostrarIndicadorSalvo(){
+  let ind = $('rascunhoSalvoIndicador');
+  if (!ind) {
+    ind = document.createElement('div');
+    ind.id = 'rascunhoSalvoIndicador';
+    ind.className = 'rascunho-salvo-indicador';
+    document.body.appendChild(ind);
+  }
+  ind.textContent = '☁️ Gespeichert';
+  ind.classList.add('show');
+  clearTimeout(ind._timeout);
+  ind._timeout = setTimeout(() => ind.classList.remove('show'), 1800);
 }
 
 async function apagarRascunhoNuvem(){
@@ -692,9 +712,14 @@ async function verificarRascunhoNuvem(){
   if (!_session?.user?.id) return null;
   try {
     const res = await sbFetch(`rascunhos?user_id=eq.${_session.user.id}&select=*&limit=1`);
+    if (!res.ok) {
+      const detalhe = await res.text().catch(() => '');
+      console.error('[Rascunho-Nuvem] Fehler beim Laden — Tabelle "rascunhos" existiert? RLS korrekt?', res.status, detalhe);
+      return null;
+    }
     const rows = await res.json();
     return Array.isArray(rows) && rows.length ? rows[0] : null;
-  } catch(e) { return null; }
+  } catch(e) { console.error('[Rascunho-Nuvem] Netzwerkfehler beim Laden:', e); return null; }
 }
 
 function renderAvisoRascunhoNuvem(rascunho){
